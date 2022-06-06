@@ -11,17 +11,17 @@ namespace Intent.SQLSchemaExtractor
         {
             while (true)
             {
-                string connectionString;
-                if (args.Length < 1)
-                {
-                    Console.WriteLine("Enter database connection:");
-                    connectionString = Console.ReadLine();
-                }
-                else
-                {
-                    connectionString = args[0];
-                    Console.WriteLine("Connection: " + connectionString);
-                }
+                string connectionString = "Data Source=.;Database=CORDISDB;Integrated Security=sspi;";
+                //if (args.Length < 1)
+                //{
+                //    Console.WriteLine("Enter database connection:");
+                //    connectionString = Console.ReadLine();
+                //}
+                //else
+                //{
+                //    connectionString = args[0];
+                //    Console.WriteLine("Connection: " + connectionString);
+                //}
 
                 try
                 {
@@ -30,24 +30,28 @@ namespace Intent.SQLSchemaExtractor
                     Database db = new Server(new ServerConnection(connection)).Databases[connection.Database];
 
 
-                    string destinationPackage;
-                    if (args.Length < 1)
-                    {
-                        Console.WriteLine("Enter output Intent Package:");
-                        destinationPackage = Console.ReadLine();
-                    }
-                    else
-                    {
-                        destinationPackage = args[1];
-                        Console.WriteLine("Intent Package: " + destinationPackage);
-                    }
+                    string destinationPackage = @"C:\Dev\Clients\MineRP\MineRP5\intent\intent-sop\MineRP.Sop.Intent\intent\NewApplication\Intent.Metadata\Domain\Domain\Domain.pkg.config";
+                    //if (args.Length < 1)
+                    //{
+                    //    Console.WriteLine("Enter output Intent Package:");
+                    //    destinationPackage = Console.ReadLine();
+                    //}
+                    //else
+                    //{
+                    //    destinationPackage = args[1];
+                    //    Console.WriteLine("Intent Package: " + destinationPackage);
+                    //}
                     Console.WriteLine("Extracting tables...");
-                    var package = new SqlSchemaExtractor(db).BuildPackageModel(destinationPackage, new SchemaExtratorConfiguration()
+                    var package = new SqlSchemaExtractor(db).BuildPackageModel(destinationPackage, new SchemaExtractorConfiguration()
                     {
                         PackageType = new SpecializationType("Domain Package", "1a824508-4623-45d9-accc-f572091ade5a"),
                         FolderType = new SpecializationType("Folder", "4d95d53a-8855-4f35-aa82-e312643f5c5f"),
                         ClassType = new SpecializationType("Class", "04e12b51-ed12-42a3-9667-a6aa81bb6d10"),
                         AttributeType = new SpecializationType("Attribute", "0090fb93-483e-41af-a11d-5ad2dc796adf"),
+                        OnColumnHandlers = new []
+                        {
+                            RdbmsExtractor.ApplyTextConstraint
+                        }
                     });
 
                     Console.WriteLine("Saving package...");
@@ -55,9 +59,9 @@ namespace Intent.SQLSchemaExtractor
                     Console.WriteLine("Package saved successfully.");
                     Console.WriteLine();
 
-                    Console.WriteLine("Press any key to continue...");
-                    Console.WriteLine();
-                    Console.ReadKey();
+                    //Console.WriteLine("Press any key to continue...");
+                    //Console.WriteLine();
+                    //Console.ReadKey();
                     break;
                 }
                 catch (Exception e)

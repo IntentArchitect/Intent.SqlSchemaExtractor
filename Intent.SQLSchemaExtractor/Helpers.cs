@@ -86,12 +86,12 @@ namespace Intent.SQLSchemaExtractor
             }
         }
 
-        public static bool IsFolder(this ElementPersistable @class, SchemaExtratorConfiguration config)
+        public static bool IsFolder(this ElementPersistable @class, SchemaExtractorConfiguration config)
         {
             return config.FolderType.Id.Equals(@class.SpecializationTypeId, StringComparison.OrdinalIgnoreCase);
         }
 
-        public static bool IsClass(this ElementPersistable @class, SchemaExtratorConfiguration config)
+        public static bool IsClass(this ElementPersistable @class, SchemaExtractorConfiguration config)
         {
             return config.ClassType.Id.Equals(@class.SpecializationTypeId, StringComparison.OrdinalIgnoreCase);
         }

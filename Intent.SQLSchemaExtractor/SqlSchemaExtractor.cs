@@ -12,7 +12,6 @@ namespace Intent.SQLSchemaExtractor
 {
     public class SqlSchemaExtractor
     {
-        private static readonly string PackageId = Guid.NewGuid().ToString().ToLower();
         private readonly Database _db;
 
         public SqlSchemaExtractor(Database db)
@@ -20,7 +19,7 @@ namespace Intent.SQLSchemaExtractor
             _db = db;
         }
 
-        public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtratorConfiguration config)
+        public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtractorConfiguration config)
         {
             string fullPackagePath;
             string packageName;
@@ -51,7 +50,7 @@ namespace Intent.SQLSchemaExtractor
             }
             else
             {
-                package = PackageModelPersistable.CreateEmpty(config.PackageType.Id, config.PackageType.Name, PackageId, packageName);
+                package = PackageModelPersistable.CreateEmpty(config.PackageType.Id, config.PackageType.Name, Guid.NewGuid().ToString(), packageName);
                 package.AbsolutePath = fullPackagePath;
             }
 
@@ -59,14 +58,19 @@ namespace Intent.SQLSchemaExtractor
             // Classes
             foreach (Table table in _db.Tables)
             {
+                if (table.Name == "sysdiagrams")
+                {
+                    continue;
+                }
+
                 var folder = package.Classes.SingleOrDefault(x => x.Name == table.Schema && x.IsFolder(config));
                 if (folder == null)
                 {
-                    package.Classes.Add(folder = new ElementPersistable()
+                    package.AddElement(folder = new ElementPersistable()
                     {
                         Id = Guid.NewGuid().ToString(),
                         Name = table.Schema,
-                        ParentFolderId = PackageId,
+                        ParentFolderId = package.Id,
                         SpecializationTypeId = config.FolderType.Id,
                         SpecializationType = config.FolderType.Name
                     });
@@ -75,7 +79,7 @@ namespace Intent.SQLSchemaExtractor
                 var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == table.ID.ToString() && x.IsClass(config));
                 if (@class == null)
                 {
-                    package.Classes.Add(@class = new ElementPersistable
+                    package.AddElement(@class = new ElementPersistable
                     {
                         Id = Guid.NewGuid().ToString(),
                         ParentFolderId = folder.Id,
@@ -307,7 +311,7 @@ namespace Intent.SQLSchemaExtractor
         }
     }
 
-    public class SchemaExtratorConfiguration
+    public class SchemaExtractorConfiguration
     {
         public SpecializationType PackageType { get; set; } = new SpecializationType("Domain Package", "1a824508-4623-45d9-accc-f572091ade5a");
         public SpecializationType FolderType { get; set; } = new SpecializationType("Folder", "4d95d53a-8855-4f35-aa82-e312643f5c5f");

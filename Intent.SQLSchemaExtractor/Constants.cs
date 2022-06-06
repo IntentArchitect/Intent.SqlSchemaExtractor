@@ -95,11 +95,19 @@
                 public class Text
                 {
                     public const string DefinitionId = "6347286E-A637-44D6-A5D7-D9BE5789CA7A";
+                    public const string Name = "Text Constraints";
+                    public const string DefinitionPackageId = "AF8F3810-745C-42A2-93C8-798860DC45B1";
+                    public const string DefinitionPackageName = "Intent.Metadata.RDBMS";
+                    
 
                     public class PropertyId
                     {
+                        public const string SqlDataType = "1288cfcd-ee51-437e-9713-73b80118f026";
+                        public const string SqlDataTypeName = "SQL Data Type";
                         public const string MaxLength = "A04CC24D-81FB-4EA2-A34A-B3C58E04DCFD";
+                        public const string MaxLengthName = "MaxLength";
                         public const string IsUnicode = "67EC4CF4-7706-4B39-BC7C-DF539EE2B0AF";
+                        public const string IsUnicodeName = "IsUnicode";
 
                     }
                 }

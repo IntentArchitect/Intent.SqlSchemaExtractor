@@ -2,12 +2,15 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Intent.Architect.Persistence" Version="3.0.0" />
     <PackageReference Include="Microsoft.SqlServer.SqlManagementObjects" Version="161.46437.65" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Intent\Intent.IntentArchitect\IntentArchitect.ElectronClient\Intent.IArchitect.Agent.Persistence\Intent.IArchitect.Agent.Persistence.csproj" />
   </ItemGroup>
 
 </Project>
