@@ -126,7 +126,7 @@ namespace Intent.SQLSchemaExtractor
                         handler(col, attribute);
                     }
 
-                    var typeId = GetTypeId(col.DataType.Name);
+                    var typeId = GetTypeId(col.DataType);
                     attribute.TypeReference.TypeId = typeId;
                 }
 
@@ -263,50 +263,54 @@ namespace Intent.SQLSchemaExtractor
             return null;
         }
 
-        private static string GetTypeId(string dataType)
+        private static string GetTypeId(DataType dataType)
         {
-            switch (dataType.ToLower())
+            switch (dataType.SqlDataType)
             {
-                case "char":
-                case "varchar":
-                case "nvarchar":
-                case "sysname":
-                case "hierarchyid":
+                case SqlDataType.Char:
+                case SqlDataType.VarChar:
+                case SqlDataType.NVarChar:
+                case SqlDataType.NVarCharMax:
+                case SqlDataType.SysName:
+                case SqlDataType.HierarchyId:
+                case SqlDataType.Xml:
                     return Constants.TypeDefinitions.CommonTypes.String;
-                case "bigint":
-                case "time":
+                case SqlDataType.BigInt:
+                case SqlDataType.Time:
                     return Constants.TypeDefinitions.CommonTypes.Long;
-                case "int":
+                case SqlDataType.Int:
                     return Constants.TypeDefinitions.CommonTypes.Int;
-                case "long":
-                    return Constants.TypeDefinitions.CommonTypes.Long;
-                case "smallint":
+                // Don't know about a "long" type in SQL
+                //case "long":
+                //    return Constants.TypeDefinitions.CommonTypes.Long;
+                case SqlDataType.SmallInt:
                     return Constants.TypeDefinitions.CommonTypes.Short;
-                case "nchar":
-                case "tinyint":
+                case SqlDataType.NChar:
+                case SqlDataType.TinyInt:
                     return Constants.TypeDefinitions.CommonTypes.Byte;
-                case "smallmoney":
-                case "money":
-                case "decimal":
-                case "numeric":
-                case "float":
+                case SqlDataType.SmallMoney:
+                case SqlDataType.Money:
+                case SqlDataType.Decimal:
+                case SqlDataType.Numeric:
+                case SqlDataType.Float:
                     return Constants.TypeDefinitions.CommonTypes.Decimal;
-                case "bit":
+                case SqlDataType.Bit:
                     return Constants.TypeDefinitions.CommonTypes.Bool;
-                case "date":
+                case SqlDataType.Date:
                     return Constants.TypeDefinitions.CommonTypes.Date;
-                case "datetime":
-                case "datetime2":
+                case SqlDataType.DateTime:
+                case SqlDataType.DateTime2:
                     return Constants.TypeDefinitions.CommonTypes.Datetime;
-                case "uniqueidentifier":
+                case SqlDataType.UniqueIdentifier:
                     return Constants.TypeDefinitions.CommonTypes.Guid;
-                case "varbinary":
-                case "timestamp":
+                case SqlDataType.VarBinary:
+                case SqlDataType.VarBinaryMax:
+                case SqlDataType.Timestamp:
                     return Constants.TypeDefinitions.CommonTypes.Binary;
-                case "datetimeoffset":
+                case SqlDataType.DateTimeOffset:
                     return Constants.TypeDefinitions.CommonTypes.DatetimeOffset;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(dataType), dataType);
+                    throw new ArgumentOutOfRangeException(nameof(dataType), dataType.SqlDataType.ToString());
             }
         }
     }
