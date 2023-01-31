@@ -269,11 +269,13 @@ namespace Intent.SQLSchemaExtractor
             {
                 case SqlDataType.Char:
                 case SqlDataType.VarChar:
+                case SqlDataType.VarCharMax:
                 case SqlDataType.NVarChar:
                 case SqlDataType.NVarCharMax:
                 case SqlDataType.SysName:
                 case SqlDataType.HierarchyId:
                 case SqlDataType.Xml:
+                case SqlDataType.Text:
                     return Constants.TypeDefinitions.CommonTypes.String;
                 case SqlDataType.BigInt:
                 case SqlDataType.Time:
@@ -300,12 +302,14 @@ namespace Intent.SQLSchemaExtractor
                     return Constants.TypeDefinitions.CommonTypes.Date;
                 case SqlDataType.DateTime:
                 case SqlDataType.DateTime2:
+                case SqlDataType.SmallDateTime:
                     return Constants.TypeDefinitions.CommonTypes.Datetime;
                 case SqlDataType.UniqueIdentifier:
                     return Constants.TypeDefinitions.CommonTypes.Guid;
                 case SqlDataType.VarBinary:
                 case SqlDataType.VarBinaryMax:
                 case SqlDataType.Timestamp:
+                case SqlDataType.Image:
                     return Constants.TypeDefinitions.CommonTypes.Binary;
                 case SqlDataType.DateTimeOffset:
                     return Constants.TypeDefinitions.CommonTypes.DatetimeOffset;

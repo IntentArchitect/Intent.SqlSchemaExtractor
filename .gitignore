@@ -259,3 +259,5 @@ ModelManifest.xml
 
 # Nothing in the articles folder should ever be ignored
 !articles/**
+
+.idea/
