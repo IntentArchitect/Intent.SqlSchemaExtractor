@@ -8,9 +8,21 @@ using Microsoft.SqlServer.Management.Smo;
 
 namespace Intent.SQLSchemaExtractor;
 
-internal static class RdbmsExtractor
+internal static class RdbmsDecorator
 {
-    public static void ApplyColumnType(Column column, ElementPersistable element)
+    public static void ApplyTableDetails(Table table, ElementPersistable element)
+    {
+        if (element.Name == table.Name && table.Schema == "dbo")
+        {
+            return;
+        }
+        
+        var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Table.DefinitionId, InitTableStereotype);
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name).Value = table.Name;
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema).Value = table.Schema;
+    }
+
+    public static void ApplyColumnDetails(Column column, ElementPersistable element)
     {
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Column.DefinitionId, InitColumnStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Name).Value = column.Name;
@@ -46,6 +58,15 @@ internal static class RdbmsExtractor
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Numeric.DefinitionId, InitDecimalConstraintStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Numeric.PropertyId.Precision).Value = column.DataType.NumericPrecision.ToString();
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Numeric.PropertyId.Scale).Value = column.DataType.NumericScale.ToString();
+    }
+    
+    private static void InitTableStereotype(StereotypePersistable stereotype)
+    {
+        stereotype.Name = Constants.Stereotypes.Rdbms.Table.Name;
+        stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+        stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name, prop => prop.Name = Constants.Stereotypes.Rdbms.Table.PropertyId.NameName);
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema, prop => prop.Name = Constants.Stereotypes.Rdbms.Table.PropertyId.SchemaName);
     }
 
     private static void InitColumnStereotype(StereotypePersistable stereotype)

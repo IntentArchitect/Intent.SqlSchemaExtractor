@@ -43,7 +43,9 @@
                     public static class PropertyId
                     {
                         public const string Name = "2b3a9df7-65e1-4800-b919-bef1a6b8f5a9";
+                        public const string NameName = "Name";
                         public const string Schema = "13e6101f-0e37-4eda-a6ae-ec48cd9f8f4b";
+                        public const string SchemaName = "Schema";
                     }
                 }
 
