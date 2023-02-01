@@ -10,6 +10,13 @@ namespace Intent.SQLSchemaExtractor;
 
 internal static class RdbmsExtractor
 {
+    public static void ApplyColumnType(Column column, ElementPersistable element)
+    {
+        var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Column.DefinitionId, InitColumnStereotype);
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Name).Value = column.Name;
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Type).Value = column.DataType.Name;
+    }
+    
     public static void ApplyTextConstraint(Column column, ElementPersistable element)
     {
         if ((column.DataType.SqlDataType != SqlDataType.VarChar &&
@@ -21,6 +28,8 @@ internal static class RdbmsExtractor
             return;
         }
 
+        element.RemoveStereotypeIfPresent(Constants.Stereotypes.Rdbms.Column.DefinitionId);
+
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Text.DefinitionId, ster => InitTextConstraintStereotype(ster, column));
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Text.PropertyId.MaxLength).Value = column.DataType.MaximumLength.ToString("D");
     }
@@ -31,17 +40,28 @@ internal static class RdbmsExtractor
         {
             return;
         }
+        
+        element.RemoveStereotypeIfPresent(Constants.Stereotypes.Rdbms.Column.DefinitionId);
 
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Numeric.DefinitionId, InitDecimalConstraintStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Numeric.PropertyId.Precision).Value = column.DataType.NumericPrecision.ToString();
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Numeric.PropertyId.Scale).Value = column.DataType.NumericScale.ToString();
     }
 
+    private static void InitColumnStereotype(StereotypePersistable stereotype)
+    {
+        stereotype.Name = Constants.Stereotypes.Rdbms.Column.Name;
+        stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+        stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Name, prop => prop.Name = Constants.Stereotypes.Rdbms.Column.PropertyId.NameName);
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Type, prop => prop.Name = Constants.Stereotypes.Rdbms.Column.PropertyId.TypeName);
+    }
+
     private static void InitTextConstraintStereotype(StereotypePersistable stereotype, Column column)
     {
         stereotype.Name = Constants.Stereotypes.Rdbms.Text.Name;
-        stereotype.DefinitionPackageName = Constants.Stereotypes.Rdbms.Text.DefinitionPackageName;
-        stereotype.DefinitionPackageId = Constants.Stereotypes.Rdbms.Text.DefinitionPackageId;
+        stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+        stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Text.PropertyId.SqlDataType, prop =>
         {
             prop.Name = Constants.Stereotypes.Rdbms.Text.PropertyId.SqlDataTypeName;
@@ -58,12 +78,12 @@ internal static class RdbmsExtractor
             prop.Value = "false";
         });
     }
-
+    
     private static void InitDecimalConstraintStereotype(StereotypePersistable stereotype)
     {
         stereotype.Name = Constants.Stereotypes.Rdbms.Numeric.Name;
-        stereotype.DefinitionPackageId = Constants.Stereotypes.Rdbms.Numeric.DefinitionPackageId;
-        stereotype.DefinitionPackageName = Constants.Stereotypes.Rdbms.Numeric.DefinitionPackageName;
+        stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+        stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Numeric.PropertyId.Precision, prop => prop.Name = Constants.Stereotypes.Rdbms.Numeric.PropertyId.PrecisionName);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Numeric.PropertyId.Scale, prop => prop.Name = Constants.Stereotypes.Rdbms.Numeric.PropertyId.ScaleName);
     }
@@ -115,5 +135,15 @@ internal static class RdbmsExtractor
         }
 
         return property;
+    }
+
+    private static void RemoveStereotypeIfPresent(this ElementPersistable element, string stereotypeDefinitionId)
+    {
+        if (string.IsNullOrEmpty(stereotypeDefinitionId))
+        {
+            throw new ArgumentException("Cannot be null or empty", nameof(stereotypeDefinitionId));
+        }
+        
+        element.Stereotypes?.RemoveAll(p => p.DefinitionId == stereotypeDefinitionId);
     }
 }

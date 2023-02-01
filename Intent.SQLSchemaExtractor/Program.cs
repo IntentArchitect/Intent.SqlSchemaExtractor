@@ -51,6 +51,7 @@ namespace Intent.SQLSchemaExtractor
                         AttributeType = new SpecializationType("Attribute", "0090fb93-483e-41af-a11d-5ad2dc796adf"),
                         OnColumnHandlers = new []
                         {
+                            RdbmsExtractor.ApplyColumnType,
                             RdbmsExtractor.ApplyTextConstraint,
                             RdbmsExtractor.ApplyDecimalConstraint
                         }

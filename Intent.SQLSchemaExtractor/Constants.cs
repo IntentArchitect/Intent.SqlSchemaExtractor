@@ -2,6 +2,15 @@
 {
     public static class Constants
     {
+        public static class Packages
+        {
+            public static class Rdbms
+            {
+                public const string DefinitionPackageId = "AF8F3810-745C-42A2-93C8-798860DC45B1";
+                public const string DefinitionPackageName = "Intent.Metadata.RDBMS";
+            }
+        }
+        
         public static class TypeDefinitions
         {
             public static class CommonTypes
@@ -29,11 +38,26 @@
                 public static class Table
                 {
                     public const string DefinitionId = "dd205b32-b48b-4c77-98f5-faefb2c047ce";
+                    public const string Name = "Table";
 
                     public static class PropertyId
                     {
                         public const string Name = "2b3a9df7-65e1-4800-b919-bef1a6b8f5a9";
                         public const string Schema = "13e6101f-0e37-4eda-a6ae-ec48cd9f8f4b";
+                    }
+                }
+
+                public static class Column
+                {
+                    public const string DefinitionId = "0b630b29-9513-4bbb-87fa-6cb3e6f65199";
+                    public const string Name = "Column";
+
+                    public static class PropertyId
+                    {
+                        public const string Name = "30044760-ea18-480e-b840-e3cb7e7296d0";
+                        public const string NameName = "Name";
+                        public const string Type = "bc03d4fc-b9cc-4ac0-8869-b3e2cb18f1ef";
+                        public const string TypeName = "Type";
                     }
                 }
 
@@ -50,8 +74,6 @@
                 {
                     public const string DefinitionId = "f21339bf-9ce6-4584-828f-de82089e3b72";
                     public const string Name = "Default Constraint";
-                    public const string DefinitionPackageId = "AF8F3810-745C-42A2-93C8-798860DC45B1";
-                    public const string DefinitionPackageName = "Intent.Metadata.RDBMS";
 
                     public static class PropertyId
                     {
@@ -87,8 +109,6 @@
                 {
                     public const string DefinitionId = "8775f4d0-7ffd-4678-a6a8-fd7e0c6fbc87";
                     public const string Name = "Decimal Constraints";
-                    public const string DefinitionPackageId = "AF8F3810-745C-42A2-93C8-798860DC45B1";
-                    public const string DefinitionPackageName = "Intent.Metadata.RDBMS";
 
                     public static class PropertyId
                     {
@@ -103,8 +123,6 @@
                 {
                     public const string DefinitionId = "6347286E-A637-44D6-A5D7-D9BE5789CA7A";
                     public const string Name = "Text Constraints";
-                    public const string DefinitionPackageId = "AF8F3810-745C-42A2-93C8-798860DC45B1";
-                    public const string DefinitionPackageName = "Intent.Metadata.RDBMS";
                     
 
                     public static class PropertyId
