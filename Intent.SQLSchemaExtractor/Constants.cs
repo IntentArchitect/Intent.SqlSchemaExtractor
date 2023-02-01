@@ -27,7 +27,6 @@
                 public const string Date = "1fbaa056-b666-4f25-b8fd-76fe3165acc8";
                 public const string Guid = "6b649125-18ea-48fd-a6ba-0bfff0d8f488";
                 public const string DatetimeOffset = "f1ba4df3-a5bc-427e-a591-4f6029f89bd7";
-                public const string New = "";
             }
         }
 
@@ -66,10 +65,12 @@
                 public static class PrimaryKey
                 {
                     public const string DefinitionId = "b99aac21-9ca4-467f-a3a6-046255a9eed6";
+                    public const string Name = "Primary Key";
 
                     public static class PropertyId
                     {
                         public const string Identity = "4c1e3f7e-61d4-460d-bd20-c2edbc0c0e2e";
+                        public const string IdentityName = "Identity";
                     }
                 }
                 public static class DefaultConstraint
@@ -80,10 +81,56 @@
                     public static class PropertyId
                     {
                         public const string TreatAsSqlExpression = "c213fe57-1d8c-4e3b-9714-21237e526e24";
+                        public const string TreatAsSqlExpressionName = "Treat as SQL Expression";
                         public const string Value = "0b03f735-394c-4c12-8f10-bd14f9ab2dd0";
+                        public const string ValueName = "Value";
                     }
                 }
 
+                public static class DecimalConstraints
+                {
+                    public const string DefinitionId = "8775f4d0-7ffd-4678-a6a8-fd7e0c6fbc87";
+                    public const string Name = "Decimal Constraints";
+
+                    public static class PropertyId
+                    {
+                        public const string Precision = "849d8f6f-573f-428a-bc46-8db2614c47c9";
+                        public const string PrecisionName = "Precision";
+                        public const string Scale = "ff13f032-826f-4ca3-9806-ea4f10b8d600";
+                        public const string ScaleName = "Scale";
+                    }
+                }
+
+                public static class TextConstraints
+                {
+                    public const string DefinitionId = "6347286E-A637-44D6-A5D7-D9BE5789CA7A";
+                    public const string Name = "Text Constraints";
+                    
+                    public static class PropertyId
+                    {
+                        public const string SqlDataType = "1288cfcd-ee51-437e-9713-73b80118f026";
+                        public const string SqlDataTypeName = "SQL Data Type";
+                        public const string MaxLength = "A04CC24D-81FB-4EA2-A34A-B3C58E04DCFD";
+                        public const string MaxLengthName = "MaxLength";
+                        public const string IsUnicode = "67EC4CF4-7706-4B39-BC7C-DF539EE2B0AF";
+                        public const string IsUnicodeName = "IsUnicode";
+                    }
+                }
+                
+                public static class ComputedValue
+                {
+                    public const string DefinitionId = "05321832-016e-49f4-acae-f2923a16b4aa";
+                    public const string Name = "Computed Value";
+
+                    public static class PropertyId
+                    {
+                        public const string Sql = "be749386-4aa1-4f28-8cfc-77b60a144d5b";
+                        public const string SqlName = "SQL";
+                        public const string Stored = "baaf3703-322c-4917-a365-8c27fa44ad7a";
+                        public const string StoredName = "Stored";
+                    }
+                }
+                
                 public static class Index
                 {
                     public const string DefinitionId = "bbe43b90-c20d-4fdb-8a55-9037a5f6bd0b";
@@ -103,49 +150,6 @@
                     public static class PropertyId
                     {
                         public const string ColumnName = "41c9145c-7ac7-4c60-acda-10544bfaa6c0";
-
-                    }
-                }
-
-                public static class Numeric
-                {
-                    public const string DefinitionId = "8775f4d0-7ffd-4678-a6a8-fd7e0c6fbc87";
-                    public const string Name = "Decimal Constraints";
-
-                    public static class PropertyId
-                    {
-                        public const string Precision = "849d8f6f-573f-428a-bc46-8db2614c47c9";
-                        public const string PrecisionName = "Precision";
-                        public const string Scale = "ff13f032-826f-4ca3-9806-ea4f10b8d600";
-                        public const string ScaleName = "Scale";
-                    }
-                }
-
-                public static class Text
-                {
-                    public const string DefinitionId = "6347286E-A637-44D6-A5D7-D9BE5789CA7A";
-                    public const string Name = "Text Constraints";
-                    
-
-                    public static class PropertyId
-                    {
-                        public const string SqlDataType = "1288cfcd-ee51-437e-9713-73b80118f026";
-                        public const string SqlDataTypeName = "SQL Data Type";
-                        public const string MaxLength = "A04CC24D-81FB-4EA2-A34A-B3C58E04DCFD";
-                        public const string MaxLengthName = "MaxLength";
-                        public const string IsUnicode = "67EC4CF4-7706-4B39-BC7C-DF539EE2B0AF";
-                        public const string IsUnicodeName = "IsUnicode";
-
-                    }
-                }
-                public static class New
-                {
-                    public const string DefinitionId = "";
-
-                    public static class PropertyId
-                    {
-                        public const string NewProp = "";
-
                     }
                 }
             }

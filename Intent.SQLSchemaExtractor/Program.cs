@@ -1,5 +1,6 @@
 ﻿using System;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
+using Intent.IArchitect.CrossPlatform.IO;
 using Microsoft.Data.SqlClient;
 using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.Smo;
@@ -55,11 +56,15 @@ namespace Intent.SQLSchemaExtractor
                         },
                         OnColumnHandlers = new []
                         {
+                            RdbmsDecorator.ApplyPrimaryKey,
                             RdbmsDecorator.ApplyColumnDetails,
                             RdbmsDecorator.ApplyTextConstraint,
-                            RdbmsDecorator.ApplyDecimalConstraint
+                            RdbmsDecorator.ApplyDecimalConstraint,
+                            RdbmsDecorator.ApplyDefaultConstraint,
+                            RdbmsDecorator.ApplyComputedValue
                         }
                     });
+                    package.Name = Path.GetFileNameWithoutExtension(package.Name);
                     package.References.Add(new PackageReferenceModel()
                         { PackageId = "870ad967-cbd4-4ea9-b86d-9c3a5d55ea67", Name = "Intent.Common.Types", Module = "Intent.Common.Types", IsExternal = true });
                     package.References.Add(new PackageReferenceModel()
