@@ -233,7 +233,13 @@ namespace Intent.SQLSchemaExtractor
 
         private static string NormalizeColumnName(string colName, Table table)
         {
-            return (colName != table.Name) ? colName.Replace(" ", "") : colName + "Value";
+            var normalized = (colName != table.Name) ? colName.Replace(" ", "") : colName + "Value";
+            normalized = normalized
+                .Replace("(", "_")
+                .Replace(")", "_")
+                .Replace("#", "Hash")
+                .Replace("%", "Percent");
+            return normalized;
         }
 
         private static string[] GetPrimaryKeys(Table table)
