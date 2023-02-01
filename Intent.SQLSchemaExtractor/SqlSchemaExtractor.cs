@@ -83,7 +83,7 @@ namespace Intent.SQLSchemaExtractor
                     {
                         Id = Guid.NewGuid().ToString(),
                         ParentFolderId = folder.Id,
-                        Name = table.Name,
+                        Name = NormalizeTableName(table.Name),
                         SpecializationTypeId = config.ClassType.Id,
                         SpecializationType = config.ClassType.Name,
                         ExternalReference = table.ID.ToString()
@@ -231,6 +231,21 @@ namespace Intent.SQLSchemaExtractor
             return package;
         }
 
+        private static string NormalizeTableName(string tableName)
+        {
+            var normalized = tableName;
+            normalized = normalized
+                .Replace("(", "_")
+                .Replace(")", "_")
+                .Replace("#", "Hash")
+                .Replace("%", "Percent")
+                .Replace("$", "Dollar")
+                .Replace("?", "Question")
+                .Replace("!", "Exclamation");
+            normalized = normalized[..1].ToUpper() + normalized[1..];
+            return normalized;
+        }
+        
         private static string NormalizeColumnName(string colName, Table table)
         {
             var normalized = (colName != table.Name) ? colName.Replace(" ", "") : colName + "Value";
@@ -238,7 +253,10 @@ namespace Intent.SQLSchemaExtractor
                 .Replace("(", "_")
                 .Replace(")", "_")
                 .Replace("#", "Hash")
-                .Replace("%", "Percent");
+                .Replace("%", "Percent")
+                .Replace("$", "Dollar")
+                .Replace("?", "Question")
+                .Replace("!", "Exclamation");
             return normalized;
         }
 

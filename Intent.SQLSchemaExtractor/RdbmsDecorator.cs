@@ -136,7 +136,7 @@ internal static class RdbmsDecorator
         }
         
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.DefaultConstraint.DefinitionId, InitDefaultConstraintStereotype);
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.Value).Value = column.DefaultConstraint.Text;
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.Value).Value = $@"""{column.DefaultConstraint.Text}""";
         
         void InitDefaultConstraintStereotype(StereotypePersistable stereotype)
         {
@@ -147,7 +147,7 @@ internal static class RdbmsDecorator
             stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.TreatAsSqlExpression, prop =>
             {
                 prop.Name = Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.TreatAsSqlExpressionName;
-                prop.Value = "false";
+                prop.Value = "true";
             });
         }
     }
