@@ -216,6 +216,8 @@ namespace Intent.SQLSchemaExtractor
                 }
             }
 
+            package.References ??= new List<PackageReferenceModel>();
+
             return package;
         }
 

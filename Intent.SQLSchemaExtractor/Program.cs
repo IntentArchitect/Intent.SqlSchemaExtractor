@@ -1,4 +1,5 @@
 ﻿using System;
+using Intent.IArchitect.Agent.Persistence.Model.Common;
 using Microsoft.Data.SqlClient;
 using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.Smo;
@@ -50,18 +51,24 @@ namespace Intent.SQLSchemaExtractor
                         AttributeType = new SpecializationType("Attribute", "0090fb93-483e-41af-a11d-5ad2dc796adf"),
                         OnColumnHandlers = new []
                         {
-                            RdbmsExtractor.ApplyTextConstraint
+                            RdbmsExtractor.ApplyTextConstraint,
+                            RdbmsExtractor.ApplyDecimalConstraint
                         }
                     });
-
+                    package.References.Add(new PackageReferenceModel()
+                        { PackageId = "870ad967-cbd4-4ea9-b86d-9c3a5d55ea67", Name = "Intent.Common.Types", Module = "Intent.Common.Types", IsExternal = true });
+                    package.References.Add(new PackageReferenceModel()
+                        { PackageId = "AF8F3810-745C-42A2-93C8-798860DC45B1", Name = "Intent.Metadata.RDBMS", Module = "Intent.Metadata.RDBMS", IsExternal = true });
+                    
                     Console.WriteLine("Saving package...");
                     package.Save();
+                    
                     Console.WriteLine("Package saved successfully.");
                     Console.WriteLine();
 
-                    Console.WriteLine("Press any key to continue...");
-                    Console.WriteLine();
-                    Console.ReadKey();
+                    // Console.WriteLine("Press any key to continue...");
+                    // Console.WriteLine();
+                    // Console.ReadKey();
                     break;
                 }
                 catch (Exception e)

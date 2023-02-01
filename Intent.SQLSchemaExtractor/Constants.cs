@@ -1,10 +1,10 @@
 ﻿namespace Intent.SQLSchemaExtractor
 {
-    public class Constants
+    public static class Constants
     {
-        public class TypeDefinitions
+        public static class TypeDefinitions
         {
-            public class CommonTypes
+            public static class CommonTypes
             {
                 public const string String = "d384db9c-a279-45e1-801e-e4e8099625f2";
                 public const string Byte = "A4E9102F-C1C8-4902-A417-CA418E1874D2";
@@ -22,46 +22,49 @@
             }
         }
 
-        public class Stereotypes
+        public static class Stereotypes
         {
-            public class Rdbms
+            public static class Rdbms
             {
-                public class Table
+                public static class Table
                 {
                     public const string DefinitionId = "dd205b32-b48b-4c77-98f5-faefb2c047ce";
 
-                    public class PropertyId
+                    public static class PropertyId
                     {
                         public const string Name = "2b3a9df7-65e1-4800-b919-bef1a6b8f5a9";
                         public const string Schema = "13e6101f-0e37-4eda-a6ae-ec48cd9f8f4b";
                     }
                 }
 
-                public class PrimaryKey
+                public static class PrimaryKey
                 {
                     public const string DefinitionId = "b99aac21-9ca4-467f-a3a6-046255a9eed6";
 
-                    public class PropertyId
+                    public static class PropertyId
                     {
                         public const string Identity = "4c1e3f7e-61d4-460d-bd20-c2edbc0c0e2e";
                     }
                 }
-                public class DefaultConstraint
+                public static class DefaultConstraint
                 {
                     public const string DefinitionId = "f21339bf-9ce6-4584-828f-de82089e3b72";
+                    public const string Name = "Default Constraint";
+                    public const string DefinitionPackageId = "AF8F3810-745C-42A2-93C8-798860DC45B1";
+                    public const string DefinitionPackageName = "Intent.Metadata.RDBMS";
 
-                    public class PropertyId
+                    public static class PropertyId
                     {
-                        public const string Name = "a1a18b91-6ad7-4828-9d2c-d77e40638e4d";
+                        public const string TreatAsSqlExpression = "c213fe57-1d8c-4e3b-9714-21237e526e24";
                         public const string Value = "0b03f735-394c-4c12-8f10-bd14f9ab2dd0";
                     }
                 }
 
-                public class Index
+                public static class Index
                 {
                     public const string DefinitionId = "bbe43b90-c20d-4fdb-8a55-9037a5f6bd0b";
 
-                    public class PropertyId
+                    public static class PropertyId
                     {
                         public const string UniqueKey = "3427ad7b-e1a6-4d36-9e12-c5ada14a414b";
                         public const string Order = "a8f903d5-e8b6-4d15-aedb-08c6b290b733";
@@ -69,30 +72,34 @@
                     }
                 }
 
-                public class ForeignKey
+                public static class ForeignKey
                 {
                     public const string DefinitionId = "dfe17723-99ee-4554-9be3-f4c90dd48078";
 
-                    public class PropertyId
+                    public static class PropertyId
                     {
                         public const string ColumnName = "41c9145c-7ac7-4c60-acda-10544bfaa6c0";
 
                     }
                 }
 
-                public class Numeric
+                public static class Numeric
                 {
-                    public const string DefinitionId = "8565814D-EF70-40EE-A0D3-577AB7B1254C";
+                    public const string DefinitionId = "8775f4d0-7ffd-4678-a6a8-fd7e0c6fbc87";
+                    public const string Name = "Decimal Constraints";
+                    public const string DefinitionPackageId = "AF8F3810-745C-42A2-93C8-798860DC45B1";
+                    public const string DefinitionPackageName = "Intent.Metadata.RDBMS";
 
-                    public class PropertyId
+                    public static class PropertyId
                     {
-                        public const string Precision = "3BB6C479-049E-4258-87D3-7068129B7B57";
-                        public const string Scale = "CFA3180C-71F6-465B-B4BC-3238FF3648BA";
-
+                        public const string Precision = "849d8f6f-573f-428a-bc46-8db2614c47c9";
+                        public const string PrecisionName = "Precision";
+                        public const string Scale = "ff13f032-826f-4ca3-9806-ea4f10b8d600";
+                        public const string ScaleName = "Scale";
                     }
                 }
 
-                public class Text
+                public static class Text
                 {
                     public const string DefinitionId = "6347286E-A637-44D6-A5D7-D9BE5789CA7A";
                     public const string Name = "Text Constraints";
@@ -100,7 +107,7 @@
                     public const string DefinitionPackageName = "Intent.Metadata.RDBMS";
                     
 
-                    public class PropertyId
+                    public static class PropertyId
                     {
                         public const string SqlDataType = "1288cfcd-ee51-437e-9713-73b80118f026";
                         public const string SqlDataTypeName = "SQL Data Type";
@@ -111,11 +118,11 @@
 
                     }
                 }
-                public class New
+                public static class New
                 {
                     public const string DefinitionId = "";
 
-                    public class PropertyId
+                    public static class PropertyId
                     {
                         public const string NewProp = "";
 
