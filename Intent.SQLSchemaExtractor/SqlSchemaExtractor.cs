@@ -206,6 +206,16 @@ namespace Intent.SQLSchemaExtractor
                                 Stereotypes = new List<StereotypePersistable>()
                             }
                         });
+                        association.TargetEnd.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.ForeignKey.DefinitionId, ster =>
+                        {
+                            ster.Name = Constants.Stereotypes.Rdbms.ForeignKey.Name;
+                            ster.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+                            ster.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+                            ster.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.ColumnName, prop =>
+                            {
+                                prop.Name = Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.ColumnNameName;
+                            }).Value = targetColumn;
+                        });
                     }
 
                     Console.WriteLine($"{table.Name}: {sourceColumns[0].Name} " +

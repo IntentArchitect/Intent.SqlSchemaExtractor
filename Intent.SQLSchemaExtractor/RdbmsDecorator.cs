@@ -20,6 +20,15 @@ internal static class RdbmsDecorator
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Table.DefinitionId, InitTableStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name).Value = table.Name;
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema).Value = table.Schema;
+        
+        void InitTableStereotype(StereotypePersistable stereotype)
+        {
+            stereotype.Name = Constants.Stereotypes.Rdbms.Table.Name;
+            stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+            stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name, prop => prop.Name = Constants.Stereotypes.Rdbms.Table.PropertyId.NameName);
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema, prop => prop.Name = Constants.Stereotypes.Rdbms.Table.PropertyId.SchemaName);
+        }
     }
     
     public static void ApplyPrimaryKey(Column column, ElementPersistable element)
@@ -31,6 +40,14 @@ internal static class RdbmsDecorator
         
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.PrimaryKey.DefinitionId, InitPrimaryKeyStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.Identity).Value = column.Identity.ToString().ToLower();
+        
+        void InitPrimaryKeyStereotype(StereotypePersistable stereotype)
+        {
+            stereotype.Name = Constants.Stereotypes.Rdbms.PrimaryKey.Name;
+            stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+            stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.Identity, prop => prop.Name = Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.IdentityName);
+        }
     }
 
     public static void ApplyColumnDetails(Column column, ElementPersistable element)
@@ -38,6 +55,15 @@ internal static class RdbmsDecorator
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Column.DefinitionId, InitColumnStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Name).Value = column.Name;
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Type).Value = column.DataType.Name;
+        
+        void InitColumnStereotype(StereotypePersistable stereotype)
+        {
+            stereotype.Name = Constants.Stereotypes.Rdbms.Column.Name;
+            stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+            stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Name, prop => prop.Name = Constants.Stereotypes.Rdbms.Column.PropertyId.NameName);
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Type, prop => prop.Name = Constants.Stereotypes.Rdbms.Column.PropertyId.TypeName);
+        }
     }
     
     public static void ApplyTextConstraint(Column column, ElementPersistable element)
@@ -55,6 +81,28 @@ internal static class RdbmsDecorator
 
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.TextConstraints.DefinitionId, ster => InitTextConstraintStereotype(ster, column));
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.MaxLength).Value = column.DataType.MaximumLength.ToString("D");
+        
+        void InitTextConstraintStereotype(StereotypePersistable stereotype, Column column)
+        {
+            stereotype.Name = Constants.Stereotypes.Rdbms.TextConstraints.Name;
+            stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+            stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.SqlDataType, prop =>
+            {
+                prop.Name = Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.SqlDataTypeName;
+                prop.Value = column.DataType.SqlDataType.ToString().ToUpper();
+            });
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.MaxLength, prop =>
+            {
+                prop.Name = Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.MaxLengthName;
+                prop.Value = null;
+            });
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.IsUnicode, prop =>
+            {
+                prop.Name = Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.IsUnicodeName;
+                prop.Value = "false";
+            });
+        }
     }
 
     public static void ApplyDecimalConstraint(Column column, ElementPersistable element)
@@ -69,6 +117,15 @@ internal static class RdbmsDecorator
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.DecimalConstraints.DefinitionId, InitDecimalConstraintStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.Precision).Value = column.DataType.NumericPrecision.ToString();
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.Scale).Value = column.DataType.NumericScale.ToString();
+        
+        void InitDecimalConstraintStereotype(StereotypePersistable stereotype)
+        {
+            stereotype.Name = Constants.Stereotypes.Rdbms.DecimalConstraints.Name;
+            stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+            stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.Precision, prop => prop.Name = Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.PrecisionName);
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.Scale, prop => prop.Name = Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.ScaleName);
+        }
     }
 
     public static void ApplyDefaultConstraint(Column column, ElementPersistable element)
@@ -80,6 +137,19 @@ internal static class RdbmsDecorator
         
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.DefaultConstraint.DefinitionId, InitDefaultConstraintStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.Value).Value = column.DefaultConstraint.Text;
+        
+        void InitDefaultConstraintStereotype(StereotypePersistable stereotype)
+        {
+            stereotype.Name = Constants.Stereotypes.Rdbms.DefaultConstraint.Name;
+            stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+            stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.Value, prop => prop.Name = Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.ValueName);
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.TreatAsSqlExpression, prop =>
+            {
+                prop.Name = Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.TreatAsSqlExpressionName;
+                prop.Value = "false";
+            });
+        }
     }
 
     public static void ApplyComputedValue(Column column, ElementPersistable element)
@@ -91,147 +161,18 @@ internal static class RdbmsDecorator
         
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.ComputedValue.DefinitionId, InitComputedValueStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.Sql).Value = column.ComputedText;
-    }
-
-    private static void InitTableStereotype(StereotypePersistable stereotype)
-    {
-        stereotype.Name = Constants.Stereotypes.Rdbms.Table.Name;
-        stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
-        stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name, prop => prop.Name = Constants.Stereotypes.Rdbms.Table.PropertyId.NameName);
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema, prop => prop.Name = Constants.Stereotypes.Rdbms.Table.PropertyId.SchemaName);
-    }
-    
-    private static void InitPrimaryKeyStereotype(StereotypePersistable stereotype)
-    {
-        stereotype.Name = Constants.Stereotypes.Rdbms.PrimaryKey.Name;
-        stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
-        stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.Identity, prop => prop.Name = Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.IdentityName);
-    }
-
-    private static void InitColumnStereotype(StereotypePersistable stereotype)
-    {
-        stereotype.Name = Constants.Stereotypes.Rdbms.Column.Name;
-        stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
-        stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Name, prop => prop.Name = Constants.Stereotypes.Rdbms.Column.PropertyId.NameName);
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Type, prop => prop.Name = Constants.Stereotypes.Rdbms.Column.PropertyId.TypeName);
-    }
-
-    private static void InitTextConstraintStereotype(StereotypePersistable stereotype, Column column)
-    {
-        stereotype.Name = Constants.Stereotypes.Rdbms.TextConstraints.Name;
-        stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-        stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.SqlDataType, prop =>
-        {
-            prop.Name = Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.SqlDataTypeName;
-            prop.Value = column.DataType.SqlDataType.ToString().ToUpper();
-        });
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.MaxLength, prop =>
-        {
-            prop.Name = Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.MaxLengthName;
-            prop.Value = null;
-        });
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.IsUnicode, prop =>
-        {
-            prop.Name = Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.IsUnicodeName;
-            prop.Value = "false";
-        });
-    }
-    
-    private static void InitDecimalConstraintStereotype(StereotypePersistable stereotype)
-    {
-        stereotype.Name = Constants.Stereotypes.Rdbms.DecimalConstraints.Name;
-        stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
-        stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.Precision, prop => prop.Name = Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.PrecisionName);
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.Scale, prop => prop.Name = Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.ScaleName);
-    }
-    
-    private static void InitDefaultConstraintStereotype(StereotypePersistable stereotype)
-    {
-        stereotype.Name = Constants.Stereotypes.Rdbms.DefaultConstraint.Name;
-        stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
-        stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.Value, prop => prop.Name = Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.ValueName);
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.TreatAsSqlExpression, prop =>
-        {
-            prop.Name = Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.TreatAsSqlExpressionName;
-            prop.Value = "false";
-        });
-    }
-    
-    private static void InitComputedValueStereotype(StereotypePersistable stereotype)
-    {
-        stereotype.Name = Constants.Stereotypes.Rdbms.ComputedValue.Name;
-        stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
-        stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.Sql, prop => prop.Name = Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.SqlName);
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.Stored, prop =>
-        {
-            prop.Name = Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.StoredName;
-            prop.Value = "false";
-        });
-    }
-
-    private static StereotypePersistable GetOrCreateStereotype(this ElementPersistable element, 
-        string stereotypeDefinitionId,
-        Action<StereotypePersistable> initAction = null)
-    {
-        element.Stereotypes ??= new List<StereotypePersistable>();
         
-        var stereotype = element.Stereotypes.SingleOrDefault(x => x.DefinitionId == stereotypeDefinitionId);
-        if (stereotype == null)
+        void InitComputedValueStereotype(StereotypePersistable stereotype)
         {
-            if (initAction == null)
+            stereotype.Name = Constants.Stereotypes.Rdbms.ComputedValue.Name;
+            stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+            stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.Sql, prop => prop.Name = Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.SqlName);
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.Stored, prop =>
             {
-                throw new InvalidOperandException($"Stereotype Definition Id [{stereotypeDefinitionId}] cannot be found and cannot be created without {nameof(initAction)} being specified");
-            }
-            stereotype = new StereotypePersistable
-            {
-                DefinitionId = stereotypeDefinitionId
-            };
-            initAction(stereotype);
-            element.Stereotypes.Add(stereotype);
+                prop.Name = Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.StoredName;
+                prop.Value = "false";
+            });
         }
-
-        return stereotype;
-    }
-
-    private static StereotypePropertyPersistable GetOrCreateProperty(this StereotypePersistable stereotype, 
-        string propertyId, 
-        Action<StereotypePropertyPersistable> initAction = null)
-    {
-        stereotype.Properties ??= new List<StereotypePropertyPersistable>();
-
-        var property = stereotype.Properties.SingleOrDefault(p => p.Id == propertyId);
-        if (property == null)
-        {
-            if (initAction == null)
-            {
-                throw new InvalidOperationException($"Stereotype Definition Id [{stereotype.DefinitionId}] cannot create a property with Id [{propertyId}] without {nameof(initAction)} being specified");
-            }
-            property = new StereotypePropertyPersistable
-            {
-                Id = propertyId,
-                IsActive = true
-            };
-            initAction(property);
-            stereotype.Properties.Add(property);
-        }
-
-        return property;
-    }
-
-    private static void RemoveStereotypeIfPresent(this ElementPersistable element, string stereotypeDefinitionId)
-    {
-        if (string.IsNullOrEmpty(stereotypeDefinitionId))
-        {
-            throw new ArgumentException("Cannot be null or empty", nameof(stereotypeDefinitionId));
-        }
-        
-        element.Stereotypes?.RemoveAll(p => p.DefinitionId == stereotypeDefinitionId);
     }
 }

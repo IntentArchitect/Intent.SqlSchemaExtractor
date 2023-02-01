@@ -146,10 +146,12 @@
                 public static class ForeignKey
                 {
                     public const string DefinitionId = "dfe17723-99ee-4554-9be3-f4c90dd48078";
+                    public const string Name = "Foreign Key";
 
                     public static class PropertyId
                     {
                         public const string ColumnName = "41c9145c-7ac7-4c60-acda-10544bfaa6c0";
+                        public const string ColumnNameName = "Column Name";
                     }
                 }
             }
