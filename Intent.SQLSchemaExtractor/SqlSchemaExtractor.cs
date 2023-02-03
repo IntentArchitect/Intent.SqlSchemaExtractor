@@ -147,6 +147,7 @@ namespace Intent.SQLSchemaExtractor
             // Associations
             foreach (Table table in _db.Tables)
             {
+                var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == table.ID.ToString() && x.IsClass(config));
                 var sourcePKs = GetPrimaryKeys(table);
                 foreach (ForeignKey foreignKey in table.ForeignKeys)
                 {
@@ -206,16 +207,6 @@ namespace Intent.SQLSchemaExtractor
                                 Stereotypes = new List<StereotypePersistable>()
                             }
                         });
-                        association.TargetEnd.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.ForeignKey.DefinitionId, ster =>
-                        {
-                            ster.Name = Constants.Stereotypes.Rdbms.ForeignKey.Name;
-                            ster.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
-                            ster.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-                            ster.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.ColumnName, prop =>
-                            {
-                                prop.Name = Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.ColumnNameName;
-                            }).Value = targetColumn;
-                        });
                     }
 
                     Console.WriteLine($"{table.Name}: {sourceColumns[0].Name} " +
@@ -223,6 +214,40 @@ namespace Intent.SQLSchemaExtractor
                                       "--> " +
                                       $"[{(association.TargetEnd.TypeReference.IsNullable ? "0" : "1")}..{(association.TargetEnd.TypeReference.IsCollection ? "*" : "1")}] " +
                                       $"{targetTable.Name}: {targetColumn}");
+
+                    var attribute = @class.ChildElements
+                        .FirstOrDefault(p => p.SpecializationType == "Attribute" &&
+                                             p.ExternalReference == sourceColumns[0].ID.ToString());
+                    if (attribute != null)
+                    {
+                        if (attribute.Metadata.All(p => p.Key != "fk-original-name"))
+                        {
+                            attribute.Metadata.Add(new GenericMetadataPersistable
+                            {
+                                Key = "fk-original-name",
+                                Value = attribute.Name
+                            });
+                        }
+
+                        if (attribute.Metadata.All(p => p.Key != "association"))
+                        {
+                            attribute.Metadata.Add(new GenericMetadataPersistable
+                            {
+                                Key = "association",
+                                Value = association.Id
+                            });
+                        }
+
+                        attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.ForeignKey.DefinitionId, ster =>
+                            {
+                                ster.Name = Constants.Stereotypes.Rdbms.ForeignKey.Name;
+                                ster.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+                                ster.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+                                ster.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.Association,
+                                    prop => prop.Name = Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.AssociationName);
+                            })
+                            .GetOrCreateProperty(Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.Association).Value = association.TargetEnd.Id;
+                    }
                 }
             }
 
