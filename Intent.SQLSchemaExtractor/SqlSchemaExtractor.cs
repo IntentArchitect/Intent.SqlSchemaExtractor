@@ -247,7 +247,8 @@ namespace Intent.SQLSchemaExtractor
                                 ster.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.Association,
                                     prop => prop.Name = Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.AssociationName);
                             })
-                            .GetOrCreateProperty(Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.Association).Value = association.TargetEnd.Id;
+                            .GetOrCreateProperty(Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.Association)
+                            .Value = association.TargetEnd.Id;
                     }
                 }
             }

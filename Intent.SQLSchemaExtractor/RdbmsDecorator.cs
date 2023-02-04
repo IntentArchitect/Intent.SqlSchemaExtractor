@@ -12,11 +12,6 @@ internal static class RdbmsDecorator
 {
     public static void ApplyTableDetails(Table table, ElementPersistable element)
     {
-        if (element.Name == table.Name && table.Schema == "dbo")
-        {
-            return;
-        }
-        
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Table.DefinitionId, InitTableStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name).Value = table.Name;
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema).Value = table.Schema;
