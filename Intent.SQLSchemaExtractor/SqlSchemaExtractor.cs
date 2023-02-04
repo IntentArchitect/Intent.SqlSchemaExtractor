@@ -63,13 +63,14 @@ namespace Intent.SQLSchemaExtractor
                     continue;
                 }
 
-                var folder = package.Classes.SingleOrDefault(x => x.Name == table.Schema && x.IsFolder(config));
+                var normalizedSchema = NormalizeSchemaName(table.Schema);
+                var folder = package.Classes.SingleOrDefault(x => x.Name == normalizedSchema && x.IsFolder(config));
                 if (folder == null)
                 {
                     package.AddElement(folder = new ElementPersistable()
                     {
                         Id = Guid.NewGuid().ToString(),
-                        Name = table.Schema,
+                        Name = normalizedSchema,
                         ParentFolderId = package.Id,
                         SpecializationTypeId = config.FolderType.Id,
                         SpecializationType = config.FolderType.Name
@@ -256,6 +257,13 @@ namespace Intent.SQLSchemaExtractor
             return package;
         }
 
+        private static string NormalizeSchemaName(string schemaName)
+        {
+            var normalized = schemaName;
+            normalized = normalized[..1].ToUpper() + normalized[1..];
+            return normalized;
+        }
+
         private static string NormalizeTableName(string tableName)
         {
             var normalized = tableName;
@@ -282,6 +290,7 @@ namespace Intent.SQLSchemaExtractor
                 .Replace("$", "Dollar")
                 .Replace("?", "Question")
                 .Replace("!", "Exclamation");
+            normalized = normalized[..1].ToUpper() + normalized[1..];
             return normalized;
         }
 
