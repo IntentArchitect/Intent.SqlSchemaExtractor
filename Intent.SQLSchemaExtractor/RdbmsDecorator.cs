@@ -49,7 +49,13 @@ internal static class RdbmsDecorator
     {
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Column.DefinitionId, InitColumnStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Name).Value = column.Name;
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Type).Value = column.DataType.Name;
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Type).Value = column.DataType.SqlDataType switch
+        {
+            SqlDataType.VarBinaryMax => "varbinary(max)",
+            SqlDataType.VarCharMax => "varchar(max)",
+            SqlDataType.NVarCharMax => "nvarchar(max)",
+            _ => column.DataType.Name
+        };
         
         void InitColumnStereotype(StereotypePersistable stereotype)
         {
