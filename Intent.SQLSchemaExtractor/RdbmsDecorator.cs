@@ -78,8 +78,6 @@ internal static class RdbmsDecorator
             return;
         }
 
-        element.RemoveStereotypeIfPresent(Constants.Stereotypes.Rdbms.Column.DefinitionId);
-
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.TextConstraints.DefinitionId, ster => InitTextConstraintStereotype(ster, column));
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.MaxLength).Value = column.DataType.MaximumLength.ToString("D");
         
@@ -113,8 +111,6 @@ internal static class RdbmsDecorator
             return;
         }
         
-        element.RemoveStereotypeIfPresent(Constants.Stereotypes.Rdbms.Column.DefinitionId);
-
         var stereotype = element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.DecimalConstraints.DefinitionId, InitDecimalConstraintStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.Precision).Value = column.DataType.NumericPrecision.ToString();
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.Scale).Value = column.DataType.NumericScale.ToString();

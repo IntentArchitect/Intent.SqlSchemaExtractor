@@ -81,14 +81,4 @@ public static class PersistableExtensions
 
         return property;
     }
-
-    public static void RemoveStereotypeIfPresent(this ElementPersistable element, string stereotypeDefinitionId)
-    {
-        if (string.IsNullOrEmpty(stereotypeDefinitionId))
-        {
-            throw new ArgumentException("Cannot be null or empty", nameof(stereotypeDefinitionId));
-        }
-        
-        element.Stereotypes?.RemoveAll(p => p.DefinitionId == stereotypeDefinitionId);
-    }
 }
