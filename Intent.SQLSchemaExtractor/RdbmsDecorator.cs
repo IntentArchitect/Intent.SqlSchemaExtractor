@@ -54,6 +54,8 @@ internal static class RdbmsDecorator
             SqlDataType.VarBinaryMax => "varbinary(max)",
             SqlDataType.VarCharMax => "varchar(max)",
             SqlDataType.NVarCharMax => "nvarchar(max)",
+            SqlDataType.VarChar or SqlDataType.NVarChar or SqlDataType.VarBinary when column.DataType.MaximumLength > 0 => 
+                $"{column.DataType.Name}({column.DataType.MaximumLength})",
             _ => column.DataType.Name
         };
         
