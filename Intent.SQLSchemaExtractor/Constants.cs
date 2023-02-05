@@ -134,12 +134,16 @@
                 public static class Index
                 {
                     public const string DefinitionId = "bbe43b90-c20d-4fdb-8a55-9037a5f6bd0b";
+                    public const string Name = "Index";
 
                     public static class PropertyId
                     {
                         public const string UniqueKey = "3427ad7b-e1a6-4d36-9e12-c5ada14a414b";
+                        public const string UniqueKeyName = "UniqueKey";
                         public const string Order = "a8f903d5-e8b6-4d15-aedb-08c6b290b733";
+                        public const string OrderName = "Order";
                         public const string IsUnique = "90002464-b824-40e2-9f73-32f306868897";
+                        public const string IsUniqueName = "IsUnique";
                     }
                 }
 

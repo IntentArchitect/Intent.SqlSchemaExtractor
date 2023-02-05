@@ -62,6 +62,10 @@ namespace Intent.SQLSchemaExtractor
                             RdbmsDecorator.ApplyDecimalConstraint,
                             RdbmsDecorator.ApplyDefaultConstraint,
                             RdbmsDecorator.ApplyComputedValue
+                        },
+                        OnIndexHandlers = new []
+                        {
+                            RdbmsDecorator.ApplyIndex
                         }
                     });
                     package.Name = Path.GetFileNameWithoutExtension(package.Name);
