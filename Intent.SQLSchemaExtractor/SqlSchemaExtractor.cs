@@ -202,7 +202,7 @@ namespace Intent.SQLSchemaExtractor
                                     Id = Guid.NewGuid().ToString(),
                                     TypeId = sourceClassId,
                                     IsNavigable = false,
-                                    IsNullable = true,
+                                    IsNullable = false,
                                     IsCollection = !(sourcePKs.Length == sourceColumns.Count && sourceColumns.All(x => sourcePKs.Any(pk => pk == x.Name))),
                                 },
                                 Stereotypes = new List<StereotypePersistable>()
