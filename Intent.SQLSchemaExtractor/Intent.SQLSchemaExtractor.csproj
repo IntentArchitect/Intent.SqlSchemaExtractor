@@ -7,10 +7,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.SqlServer.SqlManagementObjects" Version="161.46437.65" />
+    <PackageReference Include="Intent.Architect.Persistence" Version="3.4.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Intent\Intent.IntentArchitect\IntentArchitect.ElectronClient\Intent.IArchitect.Agent.Persistence\Intent.IArchitect.Agent.Persistence.csproj" />
   </ItemGroup>
 
 </Project>
