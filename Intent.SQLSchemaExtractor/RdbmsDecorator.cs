@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
-using Microsoft.SqlServer.Management.Dmf;
 using Microsoft.SqlServer.Management.Smo;
 using Index = Microsoft.SqlServer.Management.Smo.Index;
 
@@ -13,31 +10,44 @@ internal static class RdbmsDecorator
 {
     public static void ApplyTableDetails(Table table, ElementPersistable @class)
     {
+        if (table.Name == @class.Name &&
+           table.Schema == "dbo")
+        {
+            return;
+        }
+
         var stereotype = @class.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Table.DefinitionId, InitTableStereotype);
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name).Value = table.Name;
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema).Value = table.Schema;
-        
-        void InitTableStereotype(StereotypePersistable stereotype)
+        if (table.Name != @class.Name)
+        {
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name).Value = table.Name;
+        }
+
+        if (table.Schema != "dbo")
+        {
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema).Value = table.Schema;
+        }
+
+        static void InitTableStereotype(StereotypePersistable stereotype)
         {
             stereotype.Name = Constants.Stereotypes.Rdbms.Table.Name;
             stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
             stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name, prop => prop.Name = Constants.Stereotypes.Rdbms.Table.PropertyId.NameName);
-            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema, prop => prop.Name = Constants.Stereotypes.Rdbms.Table.PropertyId.SchemaName);
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name, _ => { });
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema, _ => { });
         }
     }
-    
+
     public static void ApplyPrimaryKey(Column column, ElementPersistable attribute)
     {
         if (!column.InPrimaryKey)
         {
             return;
         }
-        
+
         var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.PrimaryKey.DefinitionId, InitPrimaryKeyStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.Identity).Value = column.Identity.ToString().ToLower();
-        
-        void InitPrimaryKeyStereotype(StereotypePersistable stereotype)
+
+        static void InitPrimaryKeyStereotype(StereotypePersistable stereotype)
         {
             stereotype.Name = Constants.Stereotypes.Rdbms.PrimaryKey.Name;
             stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
@@ -48,28 +58,62 @@ internal static class RdbmsDecorator
 
     public static void ApplyColumnDetails(Column column, ElementPersistable attribute)
     {
-        var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Column.DefinitionId, InitColumnStereotype);
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Name).Value = column.Name;
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Type).Value = column.DataType.SqlDataType switch
+        if (column.Name == attribute.Name &&
+            IsImplicitColumnType(column, attribute))
         {
-            SqlDataType.VarBinaryMax => "varbinary(max)",
-            SqlDataType.VarCharMax => "varchar(max)",
-            SqlDataType.NVarCharMax => "nvarchar(max)",
-            SqlDataType.VarChar or SqlDataType.NVarChar or SqlDataType.VarBinary when column.DataType.MaximumLength > 0 => 
-                $"{column.DataType.Name}({column.DataType.MaximumLength})",
-            _ => column.DataType.Name
-        };
-        
-        void InitColumnStereotype(StereotypePersistable stereotype)
+            return;
+        }
+
+        var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Column.DefinitionId, InitColumnStereotype);
+
+        if (column.Name != attribute.Name)
+        {
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Name).Value = column.Name;
+        }
+
+        if (!IsImplicitColumnType(column, attribute))
+        {
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Type).Value = column.DataType.SqlDataType switch
+            {
+                SqlDataType.VarBinaryMax => "varbinary(max)",
+                SqlDataType.VarCharMax => "varchar(max)",
+                SqlDataType.NVarCharMax => "nvarchar(max)",
+                SqlDataType.VarChar or SqlDataType.NVarChar or SqlDataType.VarBinary when column.DataType.MaximumLength > 0 =>
+                    $"{column.DataType.Name}({column.DataType.MaximumLength})",
+                _ => column.DataType.Name
+            };
+        }
+
+        static void InitColumnStereotype(StereotypePersistable stereotype)
         {
             stereotype.Name = Constants.Stereotypes.Rdbms.Column.Name;
             stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
             stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Name, prop => prop.Name = Constants.Stereotypes.Rdbms.Column.PropertyId.NameName);
-            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Type, prop => prop.Name = Constants.Stereotypes.Rdbms.Column.PropertyId.TypeName);
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Name, _ => { });
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Type, _ => { });
+        }
+
+        static bool IsImplicitColumnType(Column column, ElementPersistable attribute)
+        {
+            return attribute.TypeReference.TypeId switch
+            {
+                Constants.TypeDefinitions.CommonTypes.String => true, // Column types for strings are handled by "Text Constraints" stereotype
+                Constants.TypeDefinitions.CommonTypes.Byte when column.DataType.SqlDataType == SqlDataType.TinyInt => true,
+                Constants.TypeDefinitions.CommonTypes.Bool when column.DataType.SqlDataType == SqlDataType.Bit => true,
+                Constants.TypeDefinitions.CommonTypes.Binary when column.DataType.SqlDataType == SqlDataType.VarBinary => true,
+                Constants.TypeDefinitions.CommonTypes.Short when column.DataType.SqlDataType == SqlDataType.SmallInt => true,
+                Constants.TypeDefinitions.CommonTypes.Long when column.DataType.SqlDataType == SqlDataType.BigInt => true,
+                Constants.TypeDefinitions.CommonTypes.Int when column.DataType.SqlDataType == SqlDataType.Int => true,
+                Constants.TypeDefinitions.CommonTypes.Decimal when column.DataType.SqlDataType == SqlDataType.Decimal => true,
+                Constants.TypeDefinitions.CommonTypes.Datetime when column.DataType.SqlDataType == SqlDataType.DateTime2 => true,
+                Constants.TypeDefinitions.CommonTypes.Date when column.DataType.SqlDataType == SqlDataType.Date => true,
+                Constants.TypeDefinitions.CommonTypes.Guid when column.DataType.SqlDataType == SqlDataType.UniqueIdentifier => true,
+                Constants.TypeDefinitions.CommonTypes.DatetimeOffset when column.DataType.SqlDataType == SqlDataType.DateTimeOffset => true,
+                _ => false
+            };
         }
     }
-    
+
     public static void ApplyTextConstraint(Column column, ElementPersistable attribute)
     {
         if ((column.DataType.SqlDataType != SqlDataType.VarChar &&
@@ -83,8 +127,8 @@ internal static class RdbmsDecorator
 
         var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.TextConstraints.DefinitionId, ster => InitTextConstraintStereotype(ster, column));
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.MaxLength).Value = column.DataType.MaximumLength.ToString("D");
-        
-        void InitTextConstraintStereotype(StereotypePersistable stereotype, Column column)
+
+        static void InitTextConstraintStereotype(StereotypePersistable stereotype, Column column)
         {
             stereotype.Name = Constants.Stereotypes.Rdbms.TextConstraints.Name;
             stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
@@ -113,12 +157,12 @@ internal static class RdbmsDecorator
         {
             return;
         }
-        
+
         var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.DecimalConstraints.DefinitionId, InitDecimalConstraintStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.Precision).Value = column.DataType.NumericPrecision.ToString();
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.Scale).Value = column.DataType.NumericScale.ToString();
-        
-        void InitDecimalConstraintStereotype(StereotypePersistable stereotype)
+
+        static void InitDecimalConstraintStereotype(StereotypePersistable stereotype)
         {
             stereotype.Name = Constants.Stereotypes.Rdbms.DecimalConstraints.Name;
             stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
@@ -134,11 +178,11 @@ internal static class RdbmsDecorator
         {
             return;
         }
-        
+
         var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.DefaultConstraint.DefinitionId, InitDefaultConstraintStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.Value).Value = $@"""{column.DefaultConstraint.Text}""";
-        
-        void InitDefaultConstraintStereotype(StereotypePersistable stereotype)
+
+        static void InitDefaultConstraintStereotype(StereotypePersistable stereotype)
         {
             stereotype.Name = Constants.Stereotypes.Rdbms.DefaultConstraint.Name;
             stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
@@ -158,11 +202,11 @@ internal static class RdbmsDecorator
         {
             return;
         }
-        
+
         var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.ComputedValue.DefinitionId, InitComputedValueStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.Sql).Value = column.ComputedText;
-        
-        void InitComputedValueStereotype(StereotypePersistable stereotype)
+
+        static void InitComputedValueStereotype(StereotypePersistable stereotype)
         {
             stereotype.Name = Constants.Stereotypes.Rdbms.ComputedValue.Name;
             stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
@@ -181,8 +225,13 @@ internal static class RdbmsDecorator
         var indexKeyName = $"IX_{string.Join("_", index.IndexedColumns.Cast<IndexedColumn>().Select(s => s.Name))}";
         foreach (var attribute in @class.ChildElements.Where(p => p.SpecializationType == "Attribute"))
         {
-            var columnSqlName = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Column.DefinitionId)
-                .GetOrCreateProperty(Constants.Stereotypes.Rdbms.Column.PropertyId.Name).Value;
+            var columnSqlName = attribute.TryGetStereotypeProperty(
+                Constants.Stereotypes.Rdbms.Column.DefinitionId,
+                Constants.Stereotypes.Rdbms.Column.PropertyId.Name,
+                out var value)
+                ? value
+                : attribute.Name;
+
             var indexCount = 0;
             foreach (IndexedColumn indexedColumn in index.IndexedColumns)
             {

@@ -122,13 +122,13 @@ namespace Intent.SQLSchemaExtractor
                         });
                     }
 
+                    var typeId = GetTypeId(col.DataType);
+                    attribute.TypeReference.TypeId = typeId;
+
                     foreach (var handler in config.OnColumnHandlers)
                     {
                         handler(col, attribute);
                     }
-
-                    var typeId = GetTypeId(col.DataType);
-                    attribute.TypeReference.TypeId = typeId;
                 }
 
                 foreach (Index tableIndex in table.Indexes)
@@ -348,14 +348,11 @@ namespace Intent.SQLSchemaExtractor
                 case SqlDataType.Xml:
                 case SqlDataType.Text:
                     return Constants.TypeDefinitions.CommonTypes.String;
-                case SqlDataType.BigInt:
                 case SqlDataType.Time:
+                case SqlDataType.BigInt:
                     return Constants.TypeDefinitions.CommonTypes.Long;
                 case SqlDataType.Int:
                     return Constants.TypeDefinitions.CommonTypes.Int;
-                // Don't know about a "long" type in SQL
-                //case "long":
-                //    return Constants.TypeDefinitions.CommonTypes.Long;
                 case SqlDataType.SmallInt:
                     return Constants.TypeDefinitions.CommonTypes.Short;
                 case SqlDataType.NChar:
@@ -377,6 +374,7 @@ namespace Intent.SQLSchemaExtractor
                     return Constants.TypeDefinitions.CommonTypes.Datetime;
                 case SqlDataType.UniqueIdentifier:
                     return Constants.TypeDefinitions.CommonTypes.Guid;
+                case SqlDataType.Binary:
                 case SqlDataType.VarBinary:
                 case SqlDataType.VarBinaryMax:
                 case SqlDataType.Timestamp:
@@ -385,7 +383,8 @@ namespace Intent.SQLSchemaExtractor
                 case SqlDataType.DateTimeOffset:
                     return Constants.TypeDefinitions.CommonTypes.DatetimeOffset;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(dataType), dataType.SqlDataType.ToString());
+                    Console.WriteLine($"WARNING: Unknown column type: {dataType.SqlDataType.ToString()}");
+                    return null;
             }
         }
     }
