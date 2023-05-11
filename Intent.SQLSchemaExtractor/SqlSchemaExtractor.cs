@@ -175,14 +175,16 @@ namespace Intent.SQLSchemaExtractor
                     var association = package.Associations.SingleOrDefault(x => x.ExternalReference == foreignKey.ID.ToString());
                     if (association == null)
                     {
+                        var associationId = Guid.NewGuid().ToString();
                         package.Associations.Add(association = new AssociationPersistable()
                         {
-                            Id = Guid.NewGuid().ToString(),
+                            Id = associationId,
                             ExternalReference = foreignKey.ID.ToString(),
                             AssociationType = "Association",
                             TargetEnd = new AssociationEndPersistable()
                             {
-                                Id = Guid.NewGuid().ToString(),
+                                //Keep this the same as association Id
+                                Id = associationId,
                                 Name = targetName,
                                 TypeReference = new TypeReferencePersistable()
                                 {
@@ -347,6 +349,7 @@ namespace Intent.SQLSchemaExtractor
                 case SqlDataType.HierarchyId:
                 case SqlDataType.Xml:
                 case SqlDataType.Text:
+                case SqlDataType.NText:
                     return Constants.TypeDefinitions.CommonTypes.String;
                 case SqlDataType.Time:
                 case SqlDataType.BigInt:
