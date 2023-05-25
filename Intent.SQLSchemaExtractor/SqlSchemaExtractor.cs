@@ -366,6 +366,7 @@ namespace Intent.SQLSchemaExtractor
                 case SqlDataType.Decimal:
                 case SqlDataType.Numeric:
                 case SqlDataType.Float:
+                case SqlDataType.Real:
                     return Constants.TypeDefinitions.CommonTypes.Decimal;
                 case SqlDataType.Bit:
                     return Constants.TypeDefinitions.CommonTypes.Bool;
