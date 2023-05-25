@@ -106,7 +106,7 @@ namespace Intent.SQLSchemaExtractor
                         @class.ChildElements.Add(attribute = new ElementPersistable()
                         {
                             Id = Guid.NewGuid().ToString(),
-                            Name = normalizedColumnName,
+                            Name = DeDuplicate(normalizedColumnName, @class.Name),
                             SpecializationTypeId = config.AttributeType.Id,
                             SpecializationType = config.AttributeType.Name,
                             Stereotypes = new List<StereotypePersistable>(),
@@ -258,6 +258,17 @@ namespace Intent.SQLSchemaExtractor
             package.References ??= new List<PackageReferenceModel>();
 
             return package;
+        }
+
+        // C# can't have the property name and class name be the same
+        private string DeDuplicate(string propertyName, string className)
+        {
+            if (propertyName != className)
+            {
+                return propertyName;
+            }
+
+            return propertyName + "Property";
         }
 
         private static string NormalizeSchemaName(string schemaName)
