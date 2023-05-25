@@ -277,7 +277,8 @@ namespace Intent.SQLSchemaExtractor
                 .Replace("%", "Percent")
                 .Replace("$", "Dollar")
                 .Replace("?", "Question")
-                .Replace("!", "Exclamation");
+                .Replace("!", "Exclamation")
+                .Replace(".", "_");
             normalized = normalized[..1].ToUpper() + normalized[1..];
             return normalized;
         }
@@ -292,7 +293,8 @@ namespace Intent.SQLSchemaExtractor
                 .Replace("%", "Percent")
                 .Replace("$", "Dollar")
                 .Replace("?", "Question")
-                .Replace("!", "Exclamation");
+                .Replace("!", "Exclamation")
+                .Replace(".", "_");
             normalized = normalized[..1].ToUpper() + normalized[1..];
             return normalized;
         }
