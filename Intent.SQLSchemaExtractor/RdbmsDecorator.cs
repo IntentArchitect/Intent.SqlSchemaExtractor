@@ -10,17 +10,10 @@ internal static class RdbmsDecorator
 {
     public static void ApplyTableDetails(Table table, ElementPersistable @class)
     {
-        if (table.Name == @class.Name &&
-           table.Schema == "dbo")
-        {
-            return;
-        }
 
         var stereotype = @class.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Table.DefinitionId, InitTableStereotype);
-        if (table.Name != @class.Name)
-        {
-            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name).Value = table.Name;
-        }
+        //For now always set this incase generated table names don't match the generated names due to things like pluralization
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name).Value = table.Name;
 
         if (table.Schema != "dbo")
         {
