@@ -58,7 +58,7 @@ namespace Intent.SQLSchemaExtractor
                         {
                             RdbmsDecorator.ApplyViewDetails
                         },
-                        OnColumnHandlers = new []
+                        OnTableColumnHandlers = new []
                         {
                             RdbmsDecorator.ApplyPrimaryKey,
                             RdbmsDecorator.ApplyColumnDetails,
@@ -66,6 +66,12 @@ namespace Intent.SQLSchemaExtractor
                             RdbmsDecorator.ApplyDecimalConstraint,
                             RdbmsDecorator.ApplyDefaultConstraint,
                             RdbmsDecorator.ApplyComputedValue
+                        },
+                        OnViewColumnHandlers = new []
+                        {
+                            RdbmsDecorator.ApplyColumnDetails,
+                            RdbmsDecorator.ApplyTextConstraint,
+                            RdbmsDecorator.ApplyDecimalConstraint
                         },
                         OnIndexHandlers = new []
                         {

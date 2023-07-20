@@ -52,7 +52,7 @@ namespace Intent.SQLSchemaExtractor
                 var folder = GetOrCreateFolder(config, package, table.Schema);
 
                 var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == table.ID.ToString() && x.IsClass(config));
-                if (@class == null)
+                if (@class is null)
                 {
                     package.AddElement(@class = new ElementPersistable
                     {
@@ -74,7 +74,7 @@ namespace Intent.SQLSchemaExtractor
                 foreach (Column col in table.Columns)
                 {
                     var attribute = @class.ChildElements.SingleOrDefault(x => x.ExternalReference == col.ID.ToString());
-                    if (attribute == null)
+                    if (attribute is null)
                     {
                         @class.ChildElements.Add(attribute = new ElementPersistable()
                         {
@@ -98,7 +98,7 @@ namespace Intent.SQLSchemaExtractor
                     var typeId = GetTypeId(col.DataType);
                     attribute.TypeReference.TypeId = typeId;
 
-                    foreach (var handler in config.OnColumnHandlers)
+                    foreach (var handler in config.OnTableColumnHandlers)
                     {
                         handler(col, attribute);
                     }
@@ -154,7 +154,7 @@ namespace Intent.SQLSchemaExtractor
                     }
 
                     var association = package.Associations.SingleOrDefault(x => x.ExternalReference == foreignKey.ID.ToString());
-                    if (association == null)
+                    if (association is null)
                     {
                         var associationId = Guid.NewGuid().ToString();
                         package.Associations.Add(association = new AssociationPersistable()
@@ -202,7 +202,7 @@ namespace Intent.SQLSchemaExtractor
                     var attribute = @class.ChildElements
                         .FirstOrDefault(p => p.SpecializationType == "Attribute" &&
                                              p.ExternalReference == sourceColumns[0].ID.ToString());
-                    if (attribute != null)
+                    if (attribute is not null)
                     {
                         if (attribute.Metadata.All(p => p.Key != "fk-original-name"))
                         {
@@ -246,10 +246,15 @@ namespace Intent.SQLSchemaExtractor
             
             foreach (View view in _db.Views)
             {
+                if (view.Schema is "sys" or "INFORMATION_SCHEMA")
+                {
+                    continue;
+                }
+                
                 var folder = GetOrCreateFolder(config, package, view.Schema);
                 
                 var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == view.ID.ToString() && x.IsClass(config));
-                if (@class == null)
+                if (@class is null)
                 {
                     package.AddElement(@class = new ElementPersistable
                     {
@@ -272,7 +277,7 @@ namespace Intent.SQLSchemaExtractor
                 foreach (Column col in view.Columns)
                 {
                     var attribute = @class.ChildElements.SingleOrDefault(x => x.ExternalReference == col.ID.ToString());
-                    if (attribute == null)
+                    if (attribute is null)
                     {
                         @class.ChildElements.Add(attribute = new ElementPersistable()
                         {
@@ -292,6 +297,11 @@ namespace Intent.SQLSchemaExtractor
                             ExternalReference = col.ID.ToString()
                         });
                     }
+                    
+                    foreach (var handler in config.OnViewColumnHandlers)
+                    {
+                        handler(col, attribute);
+                    }
 
                     var typeId = GetTypeId(col.DataType);
                     attribute.TypeReference.TypeId = typeId;
@@ -301,13 +311,14 @@ namespace Intent.SQLSchemaExtractor
         
         private static ElementPersistable GetOrCreateFolder(SchemaExtractorConfiguration config, PackageModelPersistable package, string folderName)
         {
-            var folder = package.Classes.SingleOrDefault(x => x.Name == folderName && x.IsFolder(config));
-            if (folder == null)
+            var normalizedFolderName = NormalizeSchemaName(folderName);
+            var folder = package.Classes.SingleOrDefault(x => x.Name == normalizedFolderName && x.IsFolder(config));
+            if (folder is null)
             {
                 package.AddElement(folder = new ElementPersistable()
                 {
                     Id = Guid.NewGuid().ToString(),
-                    Name = NormalizeSchemaName(folderName),
+                    Name = normalizedFolderName,
                     ParentFolderId = package.Id,
                     SpecializationTypeId = config.FolderType.Id,
                     SpecializationType = config.FolderType.Name
@@ -348,7 +359,7 @@ namespace Intent.SQLSchemaExtractor
                 packageName = packageNameOrPath;
 
                 var directoryName = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                if (directoryName == null)
+                if (directoryName is null)
                 {
                     throw new Exception($"Path.GetDirectoryName(\"{Assembly.GetExecutingAssembly().Location}\") is null");
                 }
@@ -512,9 +523,10 @@ namespace Intent.SQLSchemaExtractor
         public SpecializationType ClassType { get; set; } = new SpecializationType("Class", "04e12b51-ed12-42a3-9667-a6aa81bb6d10");
         public SpecializationType AttributeType { get; set; } = new SpecializationType("Attribute", "0090fb93-483e-41af-a11d-5ad2dc796adf");
         public IEnumerable<Action<Table, ElementPersistable>> OnTableHandlers { get; set; } = new List<Action<Table, ElementPersistable>>();
-        public IEnumerable<Action<Column, ElementPersistable>> OnColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
+        public IEnumerable<Action<Column, ElementPersistable>> OnTableColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
         public IEnumerable<Action<Index, ElementPersistable>> OnIndexHandlers { get; set; } = new List<Action<Index, ElementPersistable>>();
         public IEnumerable<Action<View, ElementPersistable>> OnViewHandlers { get; set; } = new List<Action<View, ElementPersistable>>();
+        public IEnumerable<Action<Column, ElementPersistable>> OnViewColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
     }
 
     public class SpecializationType
