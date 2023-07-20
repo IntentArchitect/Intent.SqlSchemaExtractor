@@ -21,40 +21,19 @@ namespace Intent.SQLSchemaExtractor
 
         public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtractorConfiguration config)
         {
-            string fullPackagePath;
-            string packageName;
-            if (packageNameOrPath.EndsWith(".pkg.config", StringComparison.OrdinalIgnoreCase))
-            {
-                fullPackagePath = packageNameOrPath;
-                var fileName = Path.GetFileName(packageNameOrPath);
-                packageName = fileName.Substring(0, fileName.Length - ".pkg.config".Length);
-            }
-            else
-            {
-                packageName = packageNameOrPath;
+            var (fullPackagePath, packageName) = GetPackageLocationAndName(packageNameOrPath);
+            var package = GetOrCreateIntentPackage(config, fullPackagePath, packageName);
 
-                var directoryName = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                if (directoryName == null)
-                {
-                    throw new Exception($"Path.GetDirectoryName(\"{Assembly.GetExecutingAssembly().Location}\")");
-                }
+            ProcessTables(config, package);
+            ProcessAssociations(config, package);
 
-                var packageLocation = Path.Combine(directoryName, "Packages");
-                fullPackagePath = Path.Combine(packageLocation, $"{packageNameOrPath}.pkg.config");
-            }
+            package.References ??= new List<PackageReferenceModel>();
 
-            PackageModelPersistable package;
-            if (File.Exists(fullPackagePath))
-            {
-                package = PackageModelPersistable.Load(fullPackagePath);
-            }
-            else
-            {
-                package = PackageModelPersistable.CreateEmpty(config.PackageType.Id, config.PackageType.Name, Guid.NewGuid().ToString(), packageName);
-                package.AbsolutePath = fullPackagePath;
-            }
+            return package;
+        }
 
-
+        private void ProcessTables(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        {
             // Classes
             foreach (Table table in _db.Tables)
             {
@@ -144,7 +123,10 @@ namespace Intent.SQLSchemaExtractor
                     }
                 }
             }
-
+        }
+        
+        private void ProcessAssociations(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        {
             // Associations
             foreach (Table table in _db.Tables)
             {
@@ -254,14 +236,52 @@ namespace Intent.SQLSchemaExtractor
                     }
                 }
             }
+        }
 
-            package.References ??= new List<PackageReferenceModel>();
+        private static PackageModelPersistable GetOrCreateIntentPackage(SchemaExtractorConfiguration config, string fullPackagePath, string packageName)
+        {
+            PackageModelPersistable package;
+            if (File.Exists(fullPackagePath))
+            {
+                package = PackageModelPersistable.Load(fullPackagePath);
+            }
+            else
+            {
+                package = PackageModelPersistable.CreateEmpty(config.PackageType.Id, config.PackageType.Name, Guid.NewGuid().ToString(), packageName);
+                package.AbsolutePath = fullPackagePath;
+            }
 
             return package;
         }
 
+        private static (string fullPackagePath, string packageName) GetPackageLocationAndName(string packageNameOrPath)
+        {
+            string fullPackagePath;
+            string packageName;
+            if (packageNameOrPath.EndsWith(".pkg.config", StringComparison.OrdinalIgnoreCase))
+            {
+                fullPackagePath = packageNameOrPath;
+                var fileName = Path.GetFileName(packageNameOrPath);
+                packageName = fileName.Substring(0, fileName.Length - ".pkg.config".Length);
+            }
+            else
+            {
+                packageName = packageNameOrPath;
+
+                var directoryName = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                if (directoryName == null)
+                {
+                    throw new Exception($"Path.GetDirectoryName(\"{Assembly.GetExecutingAssembly().Location}\") is null");
+                }
+
+                var packageLocation = Path.Combine(directoryName, "Packages");
+                fullPackagePath = Path.Combine(packageLocation, $"{packageNameOrPath}.pkg.config");
+            }
+            return (fullPackagePath, packageName);
+        }
+
         // C# can't have the property name and class name be the same
-        private string DeDuplicate(string propertyName, string className)
+        private static string DeDuplicate(string propertyName, string className)
         {
             if (propertyName != className)
             {
