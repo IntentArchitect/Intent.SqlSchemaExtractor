@@ -54,6 +54,10 @@ namespace Intent.SQLSchemaExtractor
                         {
                             RdbmsDecorator.ApplyTableDetails
                         },
+                        OnViewHandlers = new []
+                        {
+                            RdbmsDecorator.ApplyViewDetails
+                        },
                         OnColumnHandlers = new []
                         {
                             RdbmsDecorator.ApplyPrimaryKey,

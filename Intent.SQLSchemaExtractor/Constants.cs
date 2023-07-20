@@ -48,6 +48,20 @@
                     }
                 }
 
+                public static class View
+                {
+                    public const string DefinitionId = "6dfa2c79-4b9a-4741-9201-95a9d7631b4d";
+                    public const string Name = "View";
+                    
+                    public static class PropertyId
+                    {
+                        public const string Name = "cb845ecf-b4f6-46cb-986c-0bb111403445";
+                        public const string NameName = "Name";
+                        public const string Schema = "877751bd-961d-49cd-952e-6a8ffd6c8064";
+                        public const string SchemaName = "Schema";
+                    }
+                }
+
                 public static class Column
                 {
                     public const string DefinitionId = "0b630b29-9513-4bbb-87fa-6cb3e6f65199";

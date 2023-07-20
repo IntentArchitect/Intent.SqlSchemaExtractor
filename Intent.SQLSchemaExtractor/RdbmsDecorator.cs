@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
 using Microsoft.SqlServer.Management.Smo;
@@ -10,7 +11,6 @@ internal static class RdbmsDecorator
 {
     public static void ApplyTableDetails(Table table, ElementPersistable @class)
     {
-
         var stereotype = @class.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Table.DefinitionId, InitTableStereotype);
         //For now always set this incase generated table names don't match the generated names due to things like pluralization
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name).Value = table.Name;
@@ -27,6 +27,27 @@ internal static class RdbmsDecorator
             stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
             stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name, _ => { });
             stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema, _ => { });
+        }
+    }
+    
+    public static void ApplyViewDetails(View view, ElementPersistable @class)
+    {
+        var stereotype = @class.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.View.DefinitionId, InitTableStereotype);
+        //For now always set this incase generated view names don't match the generated names due to things like pluralization
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.View.PropertyId.Name).Value = view.Name;
+
+        if (view.Schema != "dbo")
+        {
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.View.PropertyId.Schema).Value = view.Schema;
+        }
+
+        static void InitTableStereotype(StereotypePersistable stereotype)
+        {
+            stereotype.Name = Constants.Stereotypes.Rdbms.View.Name;
+            stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+            stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.View.PropertyId.Name, _ => { });
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.View.PropertyId.Schema, _ => { });
         }
     }
 

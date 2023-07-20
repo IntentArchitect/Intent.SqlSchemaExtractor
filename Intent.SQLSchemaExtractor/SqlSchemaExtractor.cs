@@ -2,6 +2,7 @@
 using Intent.IArchitect.Agent.Persistence.Model.Common;
 using Microsoft.SqlServer.Management.Smo;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -25,7 +26,8 @@ namespace Intent.SQLSchemaExtractor
             var package = GetOrCreateIntentPackage(config, fullPackagePath, packageName);
 
             ProcessTables(config, package);
-            ProcessAssociations(config, package);
+            ProcessForeignKeys(config, package);
+            ProcessViews(config, package);
 
             package.References ??= new List<PackageReferenceModel>();
 
@@ -34,6 +36,11 @@ namespace Intent.SQLSchemaExtractor
 
         private void ProcessTables(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
+            Console.WriteLine();
+            Console.WriteLine("Tables");
+            Console.WriteLine("======");
+            Console.WriteLine();
+            
             // Classes
             foreach (Table table in _db.Tables)
             {
@@ -42,19 +49,7 @@ namespace Intent.SQLSchemaExtractor
                     continue;
                 }
 
-                var normalizedSchema = NormalizeSchemaName(table.Schema);
-                var folder = package.Classes.SingleOrDefault(x => x.Name == normalizedSchema && x.IsFolder(config));
-                if (folder == null)
-                {
-                    package.AddElement(folder = new ElementPersistable()
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        Name = normalizedSchema,
-                        ParentFolderId = package.Id,
-                        SpecializationTypeId = config.FolderType.Id,
-                        SpecializationType = config.FolderType.Name
-                    });
-                }
+                var folder = GetOrCreateFolder(config, package, table.Schema);
 
                 var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == table.ID.ToString() && x.IsClass(config));
                 if (@class == null)
@@ -78,14 +73,13 @@ namespace Intent.SQLSchemaExtractor
                 Console.WriteLine(table.Name);
                 foreach (Column col in table.Columns)
                 {
-                    var normalizedColumnName = NormalizeColumnName(col.Name, table);
                     var attribute = @class.ChildElements.SingleOrDefault(x => x.ExternalReference == col.ID.ToString());
                     if (attribute == null)
                     {
                         @class.ChildElements.Add(attribute = new ElementPersistable()
                         {
                             Id = Guid.NewGuid().ToString(),
-                            Name = DeDuplicate(normalizedColumnName, @class.Name),
+                            Name = DeDuplicate(NormalizeColumnName(col.Name, table), @class.Name),
                             SpecializationTypeId = config.AttributeType.Id,
                             SpecializationType = config.AttributeType.Name,
                             Stereotypes = new List<StereotypePersistable>(),
@@ -124,9 +118,14 @@ namespace Intent.SQLSchemaExtractor
                 }
             }
         }
-        
-        private void ProcessAssociations(SchemaExtractorConfiguration config, PackageModelPersistable package)
+
+        private void ProcessForeignKeys(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
+            Console.WriteLine();
+            Console.WriteLine("Foreign Keys");
+            Console.WriteLine("============");
+            Console.WriteLine();
+            
             // Associations
             foreach (Table table in _db.Tables)
             {
@@ -237,6 +236,86 @@ namespace Intent.SQLSchemaExtractor
                 }
             }
         }
+        
+        private void ProcessViews(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Views");
+            Console.WriteLine("=====");
+            Console.WriteLine();
+            
+            foreach (View view in _db.Views)
+            {
+                var folder = GetOrCreateFolder(config, package, view.Schema);
+                
+                var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == view.ID.ToString() && x.IsClass(config));
+                if (@class == null)
+                {
+                    package.AddElement(@class = new ElementPersistable
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        ParentFolderId = folder.Id,
+                        Name = NormalizeTableName(view.Name),
+                        SpecializationTypeId = config.ClassType.Id,
+                        SpecializationType = config.ClassType.Name,
+                        ExternalReference = view.ID.ToString()
+                    });
+                }
+                
+                Console.WriteLine(view.Name);
+                
+                foreach (var handler in config.OnViewHandlers)
+                {
+                    handler(view, @class);
+                }
+                
+                foreach (Column col in view.Columns)
+                {
+                    var attribute = @class.ChildElements.SingleOrDefault(x => x.ExternalReference == col.ID.ToString());
+                    if (attribute == null)
+                    {
+                        @class.ChildElements.Add(attribute = new ElementPersistable()
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            Name = DeDuplicate(NormalizeColumnName(col.Name, view), @class.Name),
+                            SpecializationTypeId = config.AttributeType.Id,
+                            SpecializationType = config.AttributeType.Name,
+                            Stereotypes = new List<StereotypePersistable>(),
+                            TypeReference = new TypeReferencePersistable()
+                            {
+                                Id = Guid.NewGuid().ToString(),
+                                IsNullable = col.Nullable,
+                                IsCollection = false,
+                                Stereotypes = new List<StereotypePersistable>(),
+                                GenericTypeParameters = new List<TypeReferencePersistable>()
+                            },
+                            ExternalReference = col.ID.ToString()
+                        });
+                    }
+
+                    var typeId = GetTypeId(col.DataType);
+                    attribute.TypeReference.TypeId = typeId;
+                }
+            }
+        }
+        
+        private static ElementPersistable GetOrCreateFolder(SchemaExtractorConfiguration config, PackageModelPersistable package, string folderName)
+        {
+            var folder = package.Classes.SingleOrDefault(x => x.Name == folderName && x.IsFolder(config));
+            if (folder == null)
+            {
+                package.AddElement(folder = new ElementPersistable()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = NormalizeSchemaName(folderName),
+                    ParentFolderId = package.Id,
+                    SpecializationTypeId = config.FolderType.Id,
+                    SpecializationType = config.FolderType.Name
+                });
+            }
+
+            return folder;
+        }
 
         private static PackageModelPersistable GetOrCreateIntentPackage(SchemaExtractorConfiguration config, string fullPackagePath, string packageName)
         {
@@ -314,7 +393,7 @@ namespace Intent.SQLSchemaExtractor
             return normalized;
         }
         
-        private static string NormalizeColumnName(string colName, Table table)
+        private static string NormalizeColumnName(string colName, NamedSmoObject table)
         {
             var normalized = (colName != table.Name) ? colName.Replace(" ", "") : colName + "Value";
             normalized = normalized
@@ -435,6 +514,7 @@ namespace Intent.SQLSchemaExtractor
         public IEnumerable<Action<Table, ElementPersistable>> OnTableHandlers { get; set; } = new List<Action<Table, ElementPersistable>>();
         public IEnumerable<Action<Column, ElementPersistable>> OnColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
         public IEnumerable<Action<Index, ElementPersistable>> OnIndexHandlers { get; set; } = new List<Action<Index, ElementPersistable>>();
+        public IEnumerable<Action<View, ElementPersistable>> OnViewHandlers { get; set; } = new List<Action<View, ElementPersistable>>();
     }
 
     public class SpecializationType
