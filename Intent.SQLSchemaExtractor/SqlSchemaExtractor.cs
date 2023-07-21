@@ -2,7 +2,6 @@
 using Intent.IArchitect.Agent.Persistence.Model.Common;
 using Microsoft.SqlServer.Management.Smo;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -28,6 +27,7 @@ namespace Intent.SQLSchemaExtractor
             ProcessTables(config, package);
             ProcessForeignKeys(config, package);
             ProcessViews(config, package);
+            //ProcessStoredProcedures(config, package);
 
             package.References ??= new List<PackageReferenceModel>();
 
@@ -59,8 +59,8 @@ namespace Intent.SQLSchemaExtractor
                         Id = Guid.NewGuid().ToString(),
                         ParentFolderId = folder.Id,
                         Name = NormalizeTableName(table.Name),
-                        SpecializationTypeId = config.ClassType.Id,
-                        SpecializationType = config.ClassType.Name,
+                        SpecializationTypeId = Constants.Specializations.ClassType.Id,
+                        SpecializationType = Constants.Specializations.ClassType.Name,
                         ExternalReference = table.ID.ToString()
                     });
                 }
@@ -80,8 +80,8 @@ namespace Intent.SQLSchemaExtractor
                         {
                             Id = Guid.NewGuid().ToString(),
                             Name = DeDuplicate(NormalizeColumnName(col.Name, table), @class.Name),
-                            SpecializationTypeId = config.AttributeType.Id,
-                            SpecializationType = config.AttributeType.Name,
+                            SpecializationTypeId = Constants.Specializations.AttributeType.Id,
+                            SpecializationType = Constants.Specializations.AttributeType.Name,
                             Stereotypes = new List<StereotypePersistable>(),
                             TypeReference = new TypeReferencePersistable()
                             {
@@ -261,8 +261,8 @@ namespace Intent.SQLSchemaExtractor
                         Id = Guid.NewGuid().ToString(),
                         ParentFolderId = folder.Id,
                         Name = NormalizeTableName(view.Name),
-                        SpecializationTypeId = config.ClassType.Id,
-                        SpecializationType = config.ClassType.Name,
+                        SpecializationTypeId = Constants.Specializations.ClassType.Id,
+                        SpecializationType = Constants.Specializations.ClassType.Name,
                         ExternalReference = view.ID.ToString()
                     });
                 }
@@ -283,8 +283,8 @@ namespace Intent.SQLSchemaExtractor
                         {
                             Id = Guid.NewGuid().ToString(),
                             Name = DeDuplicate(NormalizeColumnName(col.Name, view), @class.Name),
-                            SpecializationTypeId = config.AttributeType.Id,
-                            SpecializationType = config.AttributeType.Name,
+                            SpecializationTypeId = Constants.Specializations.AttributeType.Id,
+                            SpecializationType = Constants.Specializations.AttributeType.Name,
                             Stereotypes = new List<StereotypePersistable>(),
                             TypeReference = new TypeReferencePersistable()
                             {
@@ -309,6 +309,20 @@ namespace Intent.SQLSchemaExtractor
             }
         }
         
+        private void ProcessStoredProcedures(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Stored Procedures");
+            Console.WriteLine("=================");
+            Console.WriteLine();
+
+            foreach (StoredProcedure storedProc in _db.StoredProcedures)
+            {
+                var folder = GetOrCreateFolder(config, package, storedProc.Schema);
+                
+            }
+        }
+        
         private static ElementPersistable GetOrCreateFolder(SchemaExtractorConfiguration config, PackageModelPersistable package, string folderName)
         {
             var normalizedFolderName = NormalizeSchemaName(folderName);
@@ -320,8 +334,8 @@ namespace Intent.SQLSchemaExtractor
                     Id = Guid.NewGuid().ToString(),
                     Name = normalizedFolderName,
                     ParentFolderId = package.Id,
-                    SpecializationTypeId = config.FolderType.Id,
-                    SpecializationType = config.FolderType.Name
+                    SpecializationTypeId = Constants.Specializations.FolderType.Id,
+                    SpecializationType = Constants.Specializations.FolderType.Name
                 });
             }
 
@@ -337,7 +351,7 @@ namespace Intent.SQLSchemaExtractor
             }
             else
             {
-                package = PackageModelPersistable.CreateEmpty(config.PackageType.Id, config.PackageType.Name, Guid.NewGuid().ToString(), packageName);
+                package = PackageModelPersistable.CreateEmpty(Constants.Specializations.PackageType.Id, Constants.Specializations.PackageType.Name, Guid.NewGuid().ToString(), packageName);
                 package.AbsolutePath = fullPackagePath;
             }
 
@@ -518,25 +532,10 @@ namespace Intent.SQLSchemaExtractor
 
     public class SchemaExtractorConfiguration
     {
-        public SpecializationType PackageType { get; set; } = new SpecializationType("Domain Package", "1a824508-4623-45d9-accc-f572091ade5a");
-        public SpecializationType FolderType { get; set; } = new SpecializationType("Folder", "4d95d53a-8855-4f35-aa82-e312643f5c5f");
-        public SpecializationType ClassType { get; set; } = new SpecializationType("Class", "04e12b51-ed12-42a3-9667-a6aa81bb6d10");
-        public SpecializationType AttributeType { get; set; } = new SpecializationType("Attribute", "0090fb93-483e-41af-a11d-5ad2dc796adf");
         public IEnumerable<Action<Table, ElementPersistable>> OnTableHandlers { get; set; } = new List<Action<Table, ElementPersistable>>();
         public IEnumerable<Action<Column, ElementPersistable>> OnTableColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
         public IEnumerable<Action<Index, ElementPersistable>> OnIndexHandlers { get; set; } = new List<Action<Index, ElementPersistable>>();
         public IEnumerable<Action<View, ElementPersistable>> OnViewHandlers { get; set; } = new List<Action<View, ElementPersistable>>();
         public IEnumerable<Action<Column, ElementPersistable>> OnViewColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
-    }
-
-    public class SpecializationType
-    {
-        public SpecializationType(string name, string id)
-        {
-            Name = name;
-            Id = id;
-        }
-        public string Name { get; set; }
-        public string Id { get; set; }
     }
 }

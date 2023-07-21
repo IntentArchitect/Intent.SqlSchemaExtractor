@@ -46,10 +46,6 @@ namespace Intent.SQLSchemaExtractor
                     Console.WriteLine("Extracting tables...");
                     var package = new SqlSchemaExtractor(db).BuildPackageModel(destinationPackage, new SchemaExtractorConfiguration()
                     {
-                        PackageType = new SpecializationType("Domain Package", "1a824508-4623-45d9-accc-f572091ade5a"),
-                        FolderType = new SpecializationType("Folder", "4d95d53a-8855-4f35-aa82-e312643f5c5f"),
-                        ClassType = new SpecializationType("Class", "04e12b51-ed12-42a3-9667-a6aa81bb6d10"),
-                        AttributeType = new SpecializationType("Attribute", "0090fb93-483e-41af-a11d-5ad2dc796adf"),
                         OnTableHandlers = new []
                         {
                             RdbmsDecorator.ApplyTableDetails
