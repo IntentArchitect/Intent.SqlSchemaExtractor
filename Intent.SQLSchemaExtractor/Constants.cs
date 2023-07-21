@@ -2,14 +2,6 @@
 
 public static class Constants
 {
-    public static class Specializations
-    {
-        public static readonly SpecializationType PackageType = new("Domain Package", "1a824508-4623-45d9-accc-f572091ade5a");
-        public static readonly SpecializationType FolderType = new("Folder", "4d95d53a-8855-4f35-aa82-e312643f5c5f");
-        public static readonly SpecializationType ClassType = new("Class", "04e12b51-ed12-42a3-9667-a6aa81bb6d10");
-        public static readonly SpecializationType AttributeType = new("Attribute", "0090fb93-483e-41af-a11d-5ad2dc796adf");
-    }
-    
     public static class Packages
     {
         public static class Rdbms

@@ -22,12 +22,12 @@ namespace Intent.SQLSchemaExtractor
         public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtractorConfiguration config)
         {
             var (fullPackagePath, packageName) = GetPackageLocationAndName(packageNameOrPath);
-            var package = GetOrCreateIntentPackage(config, fullPackagePath, packageName);
+            var package = ElementHelper.GetOrCreateDomainPackage(fullPackagePath, packageName);
 
             ProcessTables(config, package);
             ProcessForeignKeys(config, package);
             ProcessViews(config, package);
-            //ProcessStoredProcedures(config, package);
+            ProcessStoredProcedures(config, package);
 
             package.References ??= new List<PackageReferenceModel>();
 
@@ -49,21 +49,8 @@ namespace Intent.SQLSchemaExtractor
                     continue;
                 }
 
-                var folder = GetOrCreateFolder(config, package, table.Schema);
-
-                var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == table.ID.ToString() && x.IsClass(config));
-                if (@class is null)
-                {
-                    package.AddElement(@class = new ElementPersistable
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        ParentFolderId = folder.Id,
-                        Name = NormalizeTableName(table.Name),
-                        SpecializationTypeId = Constants.Specializations.ClassType.Id,
-                        SpecializationType = Constants.Specializations.ClassType.Name,
-                        ExternalReference = table.ID.ToString()
-                    });
-                }
+                var folder = package.GetOrCreateFolder(table.Schema);
+                var @class = package.GetOrCreateClass(folder.Id, table.ID.ToString(), table.Name);
 
                 foreach (var handler in config.OnTableHandlers)
                 {
@@ -73,27 +60,7 @@ namespace Intent.SQLSchemaExtractor
                 Console.WriteLine(table.Name);
                 foreach (Column col in table.Columns)
                 {
-                    var attribute = @class.ChildElements.SingleOrDefault(x => x.ExternalReference == col.ID.ToString());
-                    if (attribute is null)
-                    {
-                        @class.ChildElements.Add(attribute = new ElementPersistable()
-                        {
-                            Id = Guid.NewGuid().ToString(),
-                            Name = DeDuplicate(NormalizeColumnName(col.Name, table), @class.Name),
-                            SpecializationTypeId = Constants.Specializations.AttributeType.Id,
-                            SpecializationType = Constants.Specializations.AttributeType.Name,
-                            Stereotypes = new List<StereotypePersistable>(),
-                            TypeReference = new TypeReferencePersistable()
-                            {
-                                Id = Guid.NewGuid().ToString(),
-                                IsNullable = col.Nullable,
-                                IsCollection = false,
-                                Stereotypes = new List<StereotypePersistable>(),
-                                GenericTypeParameters = new List<TypeReferencePersistable>()
-                            },
-                            ExternalReference = col.ID.ToString()
-                        });
-                    }
+                    var attribute = @class.GetOrCreateAttribute(table.Name, col.ID.ToString(), col.Name, col.Nullable);
 
                     var typeId = GetTypeId(col.DataType);
                     attribute.TypeReference.TypeId = typeId;
@@ -129,7 +96,7 @@ namespace Intent.SQLSchemaExtractor
             // Associations
             foreach (Table table in _db.Tables)
             {
-                var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == table.ID.ToString() && x.IsClass(config));
+                var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == table.ID.ToString() && x.IsClass());
                 var sourcePKs = GetPrimaryKeys(table);
                 foreach (ForeignKey foreignKey in table.ForeignKeys)
                 {
@@ -137,8 +104,8 @@ namespace Intent.SQLSchemaExtractor
                     var targetTable = GetTable(foreignKey.Columns[0].Parent.ReferencedTableSchema, foreignKey.Columns[0].Parent.ReferencedTable);
                     var targetColumn = foreignKey.Columns[0].Name;
 
-                    var sourceClassId = package.Classes.Single(x => x.ExternalReference == table.ID.ToString() && x.IsClass(config)).Id;
-                    var targetClassId = package.Classes.Single(x => x.ExternalReference == targetTable.ID.ToString() && x.IsClass(config)).Id;
+                    var sourceClassId = package.Classes.Single(x => x.ExternalReference == table.ID.ToString() && x.IsClass()).Id;
+                    var targetClassId = package.Classes.Single(x => x.ExternalReference == targetTable.ID.ToString() && x.IsClass()).Id;
                     string targetName = null;
 
                     switch (sourceColumns[0].Name.IndexOf(targetTable.Name, StringComparison.Ordinal))
@@ -251,22 +218,9 @@ namespace Intent.SQLSchemaExtractor
                     continue;
                 }
                 
-                var folder = GetOrCreateFolder(config, package, view.Schema);
-                
-                var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == view.ID.ToString() && x.IsClass(config));
-                if (@class is null)
-                {
-                    package.AddElement(@class = new ElementPersistable
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        ParentFolderId = folder.Id,
-                        Name = NormalizeTableName(view.Name),
-                        SpecializationTypeId = Constants.Specializations.ClassType.Id,
-                        SpecializationType = Constants.Specializations.ClassType.Name,
-                        ExternalReference = view.ID.ToString()
-                    });
-                }
-                
+                var folder = package.GetOrCreateFolder(view.Schema);
+                var @class = package.GetOrCreateClass(folder.Id, view.ID.ToString(), view.Name);
+
                 Console.WriteLine(view.Name);
                 
                 foreach (var handler in config.OnViewHandlers)
@@ -276,28 +230,8 @@ namespace Intent.SQLSchemaExtractor
                 
                 foreach (Column col in view.Columns)
                 {
-                    var attribute = @class.ChildElements.SingleOrDefault(x => x.ExternalReference == col.ID.ToString());
-                    if (attribute is null)
-                    {
-                        @class.ChildElements.Add(attribute = new ElementPersistable()
-                        {
-                            Id = Guid.NewGuid().ToString(),
-                            Name = DeDuplicate(NormalizeColumnName(col.Name, view), @class.Name),
-                            SpecializationTypeId = Constants.Specializations.AttributeType.Id,
-                            SpecializationType = Constants.Specializations.AttributeType.Name,
-                            Stereotypes = new List<StereotypePersistable>(),
-                            TypeReference = new TypeReferencePersistable()
-                            {
-                                Id = Guid.NewGuid().ToString(),
-                                IsNullable = col.Nullable,
-                                IsCollection = false,
-                                Stereotypes = new List<StereotypePersistable>(),
-                                GenericTypeParameters = new List<TypeReferencePersistable>()
-                            },
-                            ExternalReference = col.ID.ToString()
-                        });
-                    }
-                    
+                    var attribute = @class.GetOrCreateAttribute(view.Name, col.ID.ToString(), col.Name, col.Nullable);
+
                     foreach (var handler in config.OnViewColumnHandlers)
                     {
                         handler(col, attribute);
@@ -318,44 +252,15 @@ namespace Intent.SQLSchemaExtractor
 
             foreach (StoredProcedure storedProc in _db.StoredProcedures)
             {
-                var folder = GetOrCreateFolder(config, package, storedProc.Schema);
+                if (storedProc.Schema is "sys")
+                {
+                    continue;
+                }
+                
+                var folder = package.GetOrCreateFolder(storedProc.Schema);
+                var repository = package.GetOrCreateRepository(folder.Id, storedProc.Schema, $"{storedProc.Name}Repository");
                 
             }
-        }
-        
-        private static ElementPersistable GetOrCreateFolder(SchemaExtractorConfiguration config, PackageModelPersistable package, string folderName)
-        {
-            var normalizedFolderName = NormalizeSchemaName(folderName);
-            var folder = package.Classes.SingleOrDefault(x => x.Name == normalizedFolderName && x.IsFolder(config));
-            if (folder is null)
-            {
-                package.AddElement(folder = new ElementPersistable()
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Name = normalizedFolderName,
-                    ParentFolderId = package.Id,
-                    SpecializationTypeId = Constants.Specializations.FolderType.Id,
-                    SpecializationType = Constants.Specializations.FolderType.Name
-                });
-            }
-
-            return folder;
-        }
-
-        private static PackageModelPersistable GetOrCreateIntentPackage(SchemaExtractorConfiguration config, string fullPackagePath, string packageName)
-        {
-            PackageModelPersistable package;
-            if (File.Exists(fullPackagePath))
-            {
-                package = PackageModelPersistable.Load(fullPackagePath);
-            }
-            else
-            {
-                package = PackageModelPersistable.CreateEmpty(Constants.Specializations.PackageType.Id, Constants.Specializations.PackageType.Name, Guid.NewGuid().ToString(), packageName);
-                package.AbsolutePath = fullPackagePath;
-            }
-
-            return package;
         }
 
         private static (string fullPackagePath, string packageName) GetPackageLocationAndName(string packageNameOrPath)
@@ -382,56 +287,6 @@ namespace Intent.SQLSchemaExtractor
                 fullPackagePath = Path.Combine(packageLocation, $"{packageNameOrPath}.pkg.config");
             }
             return (fullPackagePath, packageName);
-        }
-
-        // C# can't have the property name and class name be the same
-        private static string DeDuplicate(string propertyName, string className)
-        {
-            if (propertyName != className)
-            {
-                return propertyName;
-            }
-
-            return propertyName + "Property";
-        }
-
-        private static string NormalizeSchemaName(string schemaName)
-        {
-            var normalized = schemaName;
-            normalized = normalized[..1].ToUpper() + normalized[1..];
-            return normalized;
-        }
-
-        private static string NormalizeTableName(string tableName)
-        {
-            var normalized = tableName;
-            normalized = normalized
-                .Replace("(", "_")
-                .Replace(")", "_")
-                .Replace("#", "Hash")
-                .Replace("%", "Percent")
-                .Replace("$", "Dollar")
-                .Replace("?", "Question")
-                .Replace("!", "Exclamation")
-                .Replace(".", "_");
-            normalized = normalized[..1].ToUpper() + normalized[1..];
-            return normalized;
-        }
-        
-        private static string NormalizeColumnName(string colName, NamedSmoObject table)
-        {
-            var normalized = (colName != table.Name) ? colName.Replace(" ", "") : colName + "Value";
-            normalized = normalized
-                .Replace("(", "_")
-                .Replace(")", "_")
-                .Replace("#", "Hash")
-                .Replace("%", "Percent")
-                .Replace("$", "Dollar")
-                .Replace("?", "Question")
-                .Replace("!", "Exclamation")
-                .Replace(".", "_");
-            normalized = normalized[..1].ToUpper() + normalized[1..];
-            return normalized;
         }
 
         private static string[] GetPrimaryKeys(Table table)
