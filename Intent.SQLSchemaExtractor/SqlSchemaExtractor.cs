@@ -258,8 +258,16 @@ namespace Intent.SQLSchemaExtractor
                 }
                 
                 var folder = package.GetOrCreateFolder(storedProc.Schema);
-                var repository = package.GetOrCreateRepository(folder.Id, storedProc.Schema, $"{storedProc.Name}Repository");
-                
+                var repository = package.GetOrCreateRepository(folder.Id, storedProc.Schema, $"StoredProcedureRepository");
+                var repoStoredProc = repository.GetOrCreateStoredProcedure(storedProc.ID.ToString(), storedProc.Name);
+                // We're not setting the return type since its not simple to extract that from a SQL query
+
+                foreach (StoredProcedureParameter procParameter in storedProc.Parameters)
+                {
+                    var param = repoStoredProc.GetOrCreateStoredProcedureParameter(procParameter.ID.ToString(), procParameter.Name);
+                    var typeId = GetTypeId(procParameter.DataType);
+                    param.TypeReference.TypeId = typeId;
+                }
             }
         }
 
