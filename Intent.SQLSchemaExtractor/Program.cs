@@ -75,10 +75,34 @@ namespace Intent.SQLSchemaExtractor
                         }
                     });
                     package.Name = Path.GetFileNameWithoutExtension(package.Name);
-                    package.References.Add(new PackageReferenceModel()
-                        { PackageId = "870ad967-cbd4-4ea9-b86d-9c3a5d55ea67", Name = "Intent.Common.Types", Module = "Intent.Common.Types", IsExternal = true });
-                    package.References.Add(new PackageReferenceModel()
-                        { PackageId = "AF8F3810-745C-42A2-93C8-798860DC45B1", Name = "Intent.Metadata.RDBMS", Module = "Intent.Metadata.RDBMS", IsExternal = true });
+                    package.References.Add(new PackageReferenceModel
+                    {
+                        PackageId = "870ad967-cbd4-4ea9-b86d-9c3a5d55ea67", 
+                        Name = "Intent.Common.Types", 
+                        Module = "Intent.Common.Types", 
+                        IsExternal = true
+                    });
+                    package.References.Add(new PackageReferenceModel
+                    {
+                        PackageId = "AF8F3810-745C-42A2-93C8-798860DC45B1", 
+                        Name = "Intent.Metadata.RDBMS", 
+                        Module = "Intent.Metadata.RDBMS", 
+                        IsExternal = true
+                    });
+                    package.References.Add(new PackageReferenceModel
+                    {
+                        PackageId = "a9d2a398-04e4-4300-9fbb-768568c65f9e", 
+                        Name = "Intent.EntityFrameworkCore", 
+                        Module = "Intent.EntityFrameworkCore", 
+                        IsExternal = true
+                    });
+                    package.References.Add(new PackageReferenceModel
+                    {
+                        PackageId = "5869084c-2a08-4e40-a5c9-ff26220470c8", 
+                        Name = "Intent.EntityFrameworkCore.Repositories", 
+                        Module = "Intent.EntityFrameworkCore.Repositories", 
+                        IsExternal = true
+                    });
                     
                     Console.WriteLine("Saving package...");
                     package.Save();
