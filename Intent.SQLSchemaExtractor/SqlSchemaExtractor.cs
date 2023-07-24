@@ -386,6 +386,15 @@ namespace Intent.SQLSchemaExtractor
                     return Constants.TypeDefinitions.CommonTypes.Binary;
                 case SqlDataType.DateTimeOffset:
                     return Constants.TypeDefinitions.CommonTypes.DatetimeOffset;
+                case SqlDataType.None:
+                case SqlDataType.UserDefinedDataType:
+                case SqlDataType.UserDefinedType:
+                case SqlDataType.Variant:
+                case SqlDataType.UserDefinedTableType:
+                case SqlDataType.Geometry:
+                case SqlDataType.Geography:
+                    Console.WriteLine($"WARNING: Unsupported column type: {dataType.SqlDataType.ToString()}");
+                    return null;
                 default:
                     Console.WriteLine($"WARNING: Unknown column type: {dataType.SqlDataType.ToString()}");
                     return null;
