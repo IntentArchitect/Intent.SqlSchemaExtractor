@@ -268,4 +268,37 @@ internal static class RdbmsDecorator
             }
         }
     }
+
+    public static void ApplyStoredProcedureSettings(StoredProcedure sqlStoredProc, ElementPersistable elementStoredProc)
+    {
+        var stereotype = elementStoredProc.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.StoredProcedure.DefinitionId, InitStoredProcStereotype);
+        if (sqlStoredProc.Name != elementStoredProc.Name)
+        {
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.StoredProcedure.PropertyId.NameInSchema).Value = sqlStoredProc.Name;
+        }
+
+        for (var paramIndex = 0; paramIndex < sqlStoredProc.Parameters.Count; paramIndex++)
+        {
+            var elementParam = elementStoredProc.ChildElements[paramIndex];
+            var sqlProcParam = sqlStoredProc.Parameters[paramIndex];
+            var paramStereotype = elementParam.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.StoredProcedureParameter.DefinitionId, InitStoredProcParamStereotype);
+            paramStereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.StoredProcedureParameter.PropertyId.IsOutputParam).Value = sqlProcParam.IsOutputParameter.ToString().ToLower();
+        }
+
+        static void InitStoredProcStereotype(StereotypePersistable stereotype)
+        {
+            stereotype.Name = Constants.Stereotypes.Rdbms.StoredProcedure.Name;
+            stereotype.DefinitionPackageId = Constants.Packages.EntityFrameworkCoreRepository.DefinitionPackageId;
+            stereotype.DefinitionPackageName = Constants.Packages.EntityFrameworkCoreRepository.DefinitionPackageName;
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.StoredProcedure.PropertyId.NameInSchema, prop => prop.Name = Constants.Stereotypes.Rdbms.StoredProcedure.PropertyId.NameInSchemaName);
+        }
+        
+        static void InitStoredProcParamStereotype(StereotypePersistable stereotype)
+        {
+            stereotype.Name = Constants.Stereotypes.Rdbms.StoredProcedureParameter.Name;
+            stereotype.DefinitionPackageId = Constants.Packages.EntityFrameworkCoreRepository.DefinitionPackageId;
+            stereotype.DefinitionPackageName = Constants.Packages.EntityFrameworkCoreRepository.DefinitionPackageName;
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.StoredProcedureParameter.PropertyId.IsOutputParam, prop => prop.Name = Constants.Stereotypes.Rdbms.StoredProcedureParameter.PropertyId.IsOutputParamName);
+        }
+    }
 }

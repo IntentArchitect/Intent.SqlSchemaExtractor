@@ -72,6 +72,10 @@ namespace Intent.SQLSchemaExtractor
                         OnIndexHandlers = new []
                         {
                             RdbmsDecorator.ApplyIndex
+                        },
+                        OnStoredProcedureHandlers = new []
+                        {
+                            RdbmsDecorator.ApplyStoredProcedureSettings
                         }
                     });
                     package.Name = Path.GetFileNameWithoutExtension(package.Name);

@@ -9,6 +9,12 @@ public static class Constants
             public const string DefinitionPackageId = "AF8F3810-745C-42A2-93C8-798860DC45B1";
             public const string DefinitionPackageName = "Intent.Metadata.RDBMS";
         }
+
+        public static class EntityFrameworkCoreRepository
+        {
+            public const string DefinitionPackageId = "5869084c-2a08-4e40-a5c9-ff26220470c8";
+            public const string DefinitionPackageName = "Intent.EntityFrameworkCore.Repositories";
+        }
     }
 
     public static class TypeDefinitions
@@ -171,6 +177,30 @@ public static class Constants
                 {
                     public const string Association = "42e4f9b5-f834-4e5f-86aa-d3a35c505076";
                     public const string AssociationName = "Association";
+                }
+            }
+
+            public static class StoredProcedure
+            {
+                public const string DefinitionId = "8ca606b1-406a-4b16-a7e7-8ffe1a215ecf";
+                public const string Name = "Stored Procedure Settings";
+
+                public static class PropertyId
+                {
+                    public const string NameInSchema = "1ae41308-484e-41e1-ac94-66f33bc88c36";
+                    public const string NameInSchemaName = "Name in Schema";
+                }
+            }
+            
+            public static class StoredProcedureParameter
+            {
+                public const string DefinitionId = "5332b774-6499-4b4b-9fdb-e3eef13bdee4";
+                public const string Name = "Stored Procedure Parameter Settings";
+
+                public static class PropertyId
+                {
+                    public const string IsOutputParam = "17aa77a0-c531-49ec-bed0-9cbb125f6ce3";
+                    public const string IsOutputParamName = "Is Output Parameter";
                 }
             }
         }

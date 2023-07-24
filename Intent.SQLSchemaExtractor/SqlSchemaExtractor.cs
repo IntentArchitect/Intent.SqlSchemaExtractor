@@ -268,6 +268,11 @@ namespace Intent.SQLSchemaExtractor
                     var typeId = GetTypeId(procParameter.DataType);
                     param.TypeReference.TypeId = typeId;
                 }
+                
+                foreach (var handler in config.OnStoredProcedureHandlers)
+                {
+                    handler(storedProc, repoStoredProc);
+                }
             }
         }
 
@@ -409,5 +414,6 @@ namespace Intent.SQLSchemaExtractor
         public IEnumerable<Action<Index, ElementPersistable>> OnIndexHandlers { get; set; } = new List<Action<Index, ElementPersistable>>();
         public IEnumerable<Action<View, ElementPersistable>> OnViewHandlers { get; set; } = new List<Action<View, ElementPersistable>>();
         public IEnumerable<Action<Column, ElementPersistable>> OnViewColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
+        public IEnumerable<Action<StoredProcedure, ElementPersistable>> OnStoredProcedureHandlers { get; set; } = new List<Action<StoredProcedure, ElementPersistable>>();
     }
 }
