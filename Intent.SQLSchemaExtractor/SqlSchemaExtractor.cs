@@ -41,14 +41,13 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine("======");
             Console.WriteLine();
             
-            // Classes
-            foreach (Table table in _db.Tables)
+            var filteredTables = _db.Tables.OfType<Table>().Where(table => table.Name is not "sysdiagrams").ToArray();
+            var tableCount = filteredTables.Length;
+            var tableNumber = 0;
+            foreach (Table table in filteredTables)
             {
-                if (table.Name == "sysdiagrams")
-                {
-                    continue;
-                }
-
+                Console.WriteLine($"{table.Name} ({++tableNumber}/{tableCount})");
+                
                 var folder = package.GetOrCreateFolder(table.Schema);
                 var @class = package.GetOrCreateClass(folder.Id, table.ID.ToString(), table.Name);
 
@@ -57,7 +56,6 @@ namespace Intent.SQLSchemaExtractor
                     handler(table, @class);
                 }
 
-                Console.WriteLine(table.Name);
                 foreach (Column col in table.Columns)
                 {
                     var attribute = @class.GetOrCreateAttribute(table.Name, col.ID.ToString(), col.Name, col.Nullable);
@@ -93,8 +91,8 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine("============");
             Console.WriteLine();
             
-            // Associations
-            foreach (Table table in _db.Tables)
+            var filteredTables = _db.Tables.OfType<Table>().Where(table => table.Name != "sysdiagrams").ToArray();
+            foreach (Table table in filteredTables)
             {
                 var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == table.ID.ToString() && x.IsClass());
                 var sourcePKs = GetPrimaryKeys(table);
@@ -211,17 +209,15 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine("=====");
             Console.WriteLine();
             
-            foreach (View view in _db.Views)
+            var filteredViews = _db.Views.OfType<View>().Where(view => view.Schema is not "sys" and not "INFORMATION_SCHEMA").ToArray();
+            var viewsCount = filteredViews.Length;
+            var viewNumber = 0;
+            foreach (View view in filteredViews)
             {
-                if (view.Schema is "sys" or "INFORMATION_SCHEMA")
-                {
-                    continue;
-                }
-                
                 var folder = package.GetOrCreateFolder(view.Schema);
                 var @class = package.GetOrCreateClass(folder.Id, view.ID.ToString(), view.Name);
 
-                Console.WriteLine(view.Name);
+                Console.WriteLine($"{view.Name} ({++viewNumber}/{viewsCount})");
                 
                 foreach (var handler in config.OnViewHandlers)
                 {
@@ -250,14 +246,12 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine("=================");
             Console.WriteLine();
 
-            foreach (StoredProcedure storedProc in _db.StoredProcedures)
+            var filteredStoredProcs = _db.StoredProcedures.OfType<StoredProcedure>().Where(storedProc => storedProc.Schema is not "sys").ToArray();
+            var storedProcsCount = filteredStoredProcs.Length;
+            var storedProcsNumber = 0;
+            foreach (StoredProcedure storedProc in filteredStoredProcs)
             {
-                if (storedProc.Schema is "sys")
-                {
-                    continue;
-                }
-                
-                Console.WriteLine(storedProc.Name);
+                Console.WriteLine($"{storedProc.Name} ({++storedProcsNumber}/{storedProcsCount})");
                 
                 var folder = package.GetOrCreateFolder(storedProc.Schema);
                 var repository = package.GetOrCreateRepository(folder.Id, storedProc.Schema, $"StoredProcedureRepository");
