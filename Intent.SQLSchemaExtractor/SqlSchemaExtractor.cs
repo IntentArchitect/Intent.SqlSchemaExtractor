@@ -257,6 +257,8 @@ namespace Intent.SQLSchemaExtractor
                     continue;
                 }
                 
+                Console.WriteLine(storedProc.Name);
+                
                 var folder = package.GetOrCreateFolder(storedProc.Schema);
                 var repository = package.GetOrCreateRepository(folder.Id, storedProc.Schema, $"StoredProcedureRepository");
                 var repoStoredProc = repository.GetOrCreateStoredProcedure(storedProc.ID.ToString(), storedProc.Name);
