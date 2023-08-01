@@ -130,11 +130,15 @@ internal static class RdbmsDecorator
 
     public static void ApplyTextConstraint(Column column, ElementPersistable attribute)
     {
-        if ((column.DataType.SqlDataType != SqlDataType.VarChar &&
+        if (column.DataType.SqlDataType != SqlDataType.VarChar &&
              column.DataType.SqlDataType != SqlDataType.NVarChar &&
              column.DataType.SqlDataType != SqlDataType.Text &&
-             column.DataType.SqlDataType != SqlDataType.NText) ||
-            column.DataType.MaximumLength == 0)
+             column.DataType.SqlDataType != SqlDataType.NText)
+        {
+            return;
+        }
+
+        if (column.DataType.MaximumLength == 0)
         {
             return;
         }
