@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Intent.Modules.Common" Version="3.4.2" />
     <PackageReference Include="Microsoft.SqlServer.SqlManagementObjects" Version="161.46437.65" />
     <PackageReference Include="Intent.Architect.Persistence" Version="3.4.0" />
   </ItemGroup>

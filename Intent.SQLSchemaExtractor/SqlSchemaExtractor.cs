@@ -1,5 +1,6 @@
 ﻿using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
+using Intent.Modules.Common.Templates;
 using Microsoft.SqlServer.Management.Smo;
 using System;
 using System.Collections.Generic;
@@ -106,16 +107,27 @@ namespace Intent.SQLSchemaExtractor
                     var targetClassId = package.Classes.Single(x => x.ExternalReference == targetTable.ID.ToString() && x.IsClass()).Id;
                     string targetName = null;
 
-                    switch (sourceColumns[0].Name.IndexOf(targetTable.Name, StringComparison.Ordinal))
+                    var singularTableName = targetTable.Name.Singularize(false);
+                    if (sourceColumns[0].Name.IndexOf(singularTableName, StringComparison.Ordinal) == 0)
                     {
-                        case -1:
-                            targetName = sourceColumns[0].Name.Replace("ID", "") + targetTable.Name;
-                            break;
-                        case 0:
-                            break;
-                        default:
-                            targetName = sourceColumns[0].Name.Substring(0, sourceColumns[0].Name.IndexOf(targetTable.Name, StringComparison.Ordinal) + targetTable.Name.Length);
-                            break;
+                        targetName = singularTableName;
+                    }
+                    else
+                    {
+                        switch (sourceColumns[0].Name.IndexOf(targetTable.Name, StringComparison.Ordinal))
+                        {
+                            case -1:
+
+                                //Ordinal Case
+                                targetName = sourceColumns[0].Name.Replace("ID", "", StringComparison.Ordinal) + targetTable.Name;
+                                break;
+                            case 0:
+                                targetName = singularTableName;
+                                break;
+                            default:
+                                targetName = sourceColumns[0].Name.Substring(0, sourceColumns[0].Name.IndexOf(targetTable.Name, StringComparison.Ordinal) + targetTable.Name.Length);
+                                break;
+                        }
                     }
 
                     var association = package.Associations.SingleOrDefault(x => x.ExternalReference == foreignKey.ID.ToString());
