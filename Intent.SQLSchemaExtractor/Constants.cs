@@ -203,6 +203,12 @@ public static class Constants
                     public const string IsOutputParamName = "Is Output Parameter";
                 }
             }
+
+            public static class RelationalDatabase
+            {
+                public const string DefinitionId = "51a7bcf5-0eb9-4c9a-855e-3ead1048729c";
+                public const string Name = "Relational Database";
+            }
         }
     }
 }

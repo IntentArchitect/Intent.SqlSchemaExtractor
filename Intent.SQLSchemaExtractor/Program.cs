@@ -44,7 +44,7 @@ namespace Intent.SQLSchemaExtractor
                         Console.WriteLine("Intent Package: " + destinationPackage);
                     }
                     Console.WriteLine("Extracting tables...");
-                    var package = new SqlSchemaExtractor(db).BuildPackageModel(destinationPackage, new SchemaExtractorConfiguration()
+                    var package = new SqlSchemaExtractor(db).BuildPackageModel(destinationPackage, new SchemaExtractorConfiguration
                     {
                         OnTableHandlers = new []
                         {

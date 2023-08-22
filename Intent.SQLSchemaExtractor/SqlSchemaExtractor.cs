@@ -24,7 +24,9 @@ namespace Intent.SQLSchemaExtractor
         {
             var (fullPackagePath, packageName) = GetPackageLocationAndName(packageNameOrPath);
             var package = ElementHelper.GetOrCreateDomainPackage(fullPackagePath, packageName);
+            package.IsExternalOld = false;
 
+            ApplyStereotypes(config, package);
             ProcessTables(config, package);
             ProcessForeignKeys(config, package);
             ProcessViews(config, package);
@@ -33,6 +35,23 @@ namespace Intent.SQLSchemaExtractor
             package.References ??= new List<PackageReferenceModel>();
 
             return package;
+        }
+
+        private static void ApplyStereotypes(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        {
+            if (package.Stereotypes.Any(p => p.DefinitionId == Constants.Stereotypes.Rdbms.RelationalDatabase.DefinitionId))
+            {
+                return;
+            }
+
+            package.Stereotypes.Add(new StereotypePersistable
+            {
+                Name = Constants.Stereotypes.Rdbms.RelationalDatabase.Name,
+                DefinitionId = Constants.Stereotypes.Rdbms.RelationalDatabase.DefinitionId,
+                AddedByDefault = false,
+                DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName,
+                DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId
+            });
         }
 
         private void ProcessTables(SchemaExtractorConfiguration config, PackageModelPersistable package)

@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Microsoft.SqlServer.Management.Smo;
+using Intent.Modules.Common.Templates;
 
 namespace Intent.SQLSchemaExtractor
 {
@@ -319,14 +319,25 @@ namespace Intent.SQLSchemaExtractor
         {
             var normalized = tableName;
             normalized = normalized
-                .Replace("(", "_")
-                .Replace(")", "_")
-                .Replace("#", "Hash")
-                .Replace("%", "Percent")
-                .Replace("$", "Dollar")
-                .Replace("?", "Question")
-                .Replace("!", "Exclamation")
-                .Replace(".", "_");
+                    .Replace(" ", "")
+                    .Replace("@", "")
+                    .Replace("(", "_")
+                    .Replace(")", "_")
+                    .Replace("#", "Hash")
+                    .Replace("%", "Percent")
+                    .Replace("$", "Dollar")
+                    .Replace("?", "Question")
+                    .Replace("!", "Exclamation")
+                    .Replace(".", "_")
+                    .Replace("\"", "")
+                    .Replace("&", "And")
+                    .Replace(",", "")
+                    .Replace("\\", "")
+                    .Replace("/", "")
+                ;
+            
+            normalized = normalized.RemovePrefix("tbl");
+            
             normalized = normalized[..1].ToUpper() + normalized[1..];
             return normalized;
         }
@@ -335,15 +346,32 @@ namespace Intent.SQLSchemaExtractor
         {
             var normalized = (colName != tableOrViewName) ? colName.Replace(" ", "") : colName + "Value";
             normalized = normalized
-                .Replace("(", "_")
-                .Replace(")", "_")
-                .Replace("#", "Hash")
-                .Replace("%", "Percent")
-                .Replace("$", "Dollar")
-                .Replace("?", "Question")
-                .Replace("!", "Exclamation")
-                .Replace(".", "_");
+                    .Replace("@", "")
+                    .Replace("(", "_")
+                    .Replace(")", "_")
+                    .Replace("#", "Hash")
+                    .Replace("%", "Percent")
+                    .Replace("$", "Dollar")
+                    .Replace("?", "Question")
+                    .Replace("!", "Exclamation")
+                    .Replace(".", "_")
+                    .Replace("\"", "")
+                    .Replace("&", "And")
+                    .Replace(",", "")
+                    .Replace("\\", "")
+                    .Replace("/", "")
+                ;
+            
+            normalized = normalized.RemovePrefix("col").RemovePrefix("pk");
+            
             normalized = normalized[..1].ToUpper() + normalized[1..];
+
+            if (normalized.EndsWith("ID"))
+            {
+                normalized = normalized.RemoveSuffix("ID");
+                normalized += "Id";
+            }
+            
             return normalized;
         }
         
@@ -351,15 +379,27 @@ namespace Intent.SQLSchemaExtractor
         {
             var normalized = storeProcName;
             normalized = normalized
-                .Replace(" ", "")
-                .Replace("(", "_")
-                .Replace(")", "_")
-                .Replace("#", "Hash")
-                .Replace("%", "Percent")
-                .Replace("$", "Dollar")
-                .Replace("?", "Question")
-                .Replace("!", "Exclamation")
-                .Replace(".", "_");
+                    .Replace(" ", "")
+                    .Replace("@", "")
+                    .Replace("(", "_")
+                    .Replace(")", "_")
+                    .Replace("#", "Hash")
+                    .Replace("%", "Percent")
+                    .Replace("$", "Dollar")
+                    .Replace("?", "Question")
+                    .Replace("!", "Exclamation")
+                    .Replace(".", "_")
+                    .Replace("\"", "")
+                    .Replace("&", "And")
+                    .Replace(",", "")
+                    .Replace("\\", "")
+                    .Replace("/", "")
+                ;
+            normalized = normalized.RemovePrefix("prc")
+                .RemovePrefix("Prc")
+                .RemovePrefix("proc");
+            
+            normalized = normalized[..1].ToUpper() + normalized[1..];
             return normalized;
         }
         
@@ -367,16 +407,27 @@ namespace Intent.SQLSchemaExtractor
         {
             var normalized = storeProcName;
             normalized = normalized
-                .Replace(" ", "")
-                .Replace("@", "")
-                .Replace("(", "_")
-                .Replace(")", "_")
-                .Replace("#", "Hash")
-                .Replace("%", "Percent")
-                .Replace("$", "Dollar")
-                .Replace("?", "Question")
-                .Replace("!", "Exclamation")
-                .Replace(".", "_");
+                    .Replace(" ", "")
+                    .Replace("@", "")
+                    .Replace("(", "_")
+                    .Replace(")", "_")
+                    .Replace("#", "Hash")
+                    .Replace("%", "Percent")
+                    .Replace("$", "Dollar")
+                    .Replace("?", "Question")
+                    .Replace("!", "Exclamation")
+                    .Replace(".", "_")
+                    .Replace("\"", "")
+                    .Replace("&", "And")
+                    .Replace(",", "")
+                    .Replace("\\", "")
+                    .Replace("/", "")
+                ;
+            normalized = normalized.RemovePrefix("prc")
+                .RemovePrefix("Prc")
+                .RemovePrefix("proc");
+            
+            normalized = normalized[..1].ToUpper() + normalized[1..];
             return normalized;
         }
     }
