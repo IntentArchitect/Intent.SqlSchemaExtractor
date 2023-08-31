@@ -315,27 +315,32 @@ namespace Intent.SQLSchemaExtractor
             return normalized;
         }
 
-        private static string NormalizeTableName(string tableName)
+        private static string RemoveInvalidCSharpCharacter(string value)
         {
-            var normalized = tableName;
-            normalized = normalized
+            return value
                     .Replace(" ", "")
                     .Replace("@", "")
-                    .Replace("(", "_")
-                    .Replace(")", "_")
+                    .Replace("(", "")
+                    .Replace(")", "")
                     .Replace("#", "Hash")
                     .Replace("%", "Percent")
                     .Replace("$", "Dollar")
                     .Replace("?", "Question")
                     .Replace("!", "Exclamation")
-                    .Replace(".", "_")
+                    .Replace(".", "")
                     .Replace("\"", "")
                     .Replace("&", "And")
                     .Replace(",", "")
                     .Replace("\\", "")
                     .Replace("/", "")
+                    .Replace("_", "")
                 ;
-            
+        }
+
+        private static string NormalizeTableName(string tableName)
+        {
+            var normalized = RemoveInvalidCSharpCharacter(tableName);
+
             normalized = normalized.RemovePrefix("tbl");
             
             normalized = normalized[..1].ToUpper() + normalized[1..];
@@ -344,24 +349,9 @@ namespace Intent.SQLSchemaExtractor
         
         private static string NormalizeColumnName(string colName, string tableOrViewName)
         {
-            var normalized = (colName != tableOrViewName) ? colName.Replace(" ", "") : colName + "Value";
-            normalized = normalized
-                    .Replace("@", "")
-                    .Replace("(", "_")
-                    .Replace(")", "_")
-                    .Replace("#", "Hash")
-                    .Replace("%", "Percent")
-                    .Replace("$", "Dollar")
-                    .Replace("?", "Question")
-                    .Replace("!", "Exclamation")
-                    .Replace(".", "_")
-                    .Replace("\"", "")
-                    .Replace("&", "And")
-                    .Replace(",", "")
-                    .Replace("\\", "")
-                    .Replace("/", "")
-                ;
-            
+            var normalized = (colName != tableOrViewName) ? colName : colName + "Value";
+            normalized = RemoveInvalidCSharpCharacter(normalized);
+
             normalized = normalized.RemovePrefix("col").RemovePrefix("pk");
             
             normalized = normalized[..1].ToUpper() + normalized[1..];
@@ -377,24 +367,7 @@ namespace Intent.SQLSchemaExtractor
         
         private static string NormalizeStoredProcName(string storeProcName)
         {
-            var normalized = storeProcName;
-            normalized = normalized
-                    .Replace(" ", "")
-                    .Replace("@", "")
-                    .Replace("(", "_")
-                    .Replace(")", "_")
-                    .Replace("#", "Hash")
-                    .Replace("%", "Percent")
-                    .Replace("$", "Dollar")
-                    .Replace("?", "Question")
-                    .Replace("!", "Exclamation")
-                    .Replace(".", "_")
-                    .Replace("\"", "")
-                    .Replace("&", "And")
-                    .Replace(",", "")
-                    .Replace("\\", "")
-                    .Replace("/", "")
-                ;
+            var normalized = RemoveInvalidCSharpCharacter(storeProcName);
             normalized = normalized.RemovePrefix("prc")
                 .RemovePrefix("Prc")
                 .RemovePrefix("proc");
@@ -405,24 +378,7 @@ namespace Intent.SQLSchemaExtractor
         
         private static string NormalizeStoredProcParameterName(string storeProcName)
         {
-            var normalized = storeProcName;
-            normalized = normalized
-                    .Replace(" ", "")
-                    .Replace("@", "")
-                    .Replace("(", "_")
-                    .Replace(")", "_")
-                    .Replace("#", "Hash")
-                    .Replace("%", "Percent")
-                    .Replace("$", "Dollar")
-                    .Replace("?", "Question")
-                    .Replace("!", "Exclamation")
-                    .Replace(".", "_")
-                    .Replace("\"", "")
-                    .Replace("&", "And")
-                    .Replace(",", "")
-                    .Replace("\\", "")
-                    .Replace("/", "")
-                ;
+            var normalized = RemoveInvalidCSharpCharacter(storeProcName);
             normalized = normalized.RemovePrefix("prc")
                 .RemovePrefix("Prc")
                 .RemovePrefix("proc");
