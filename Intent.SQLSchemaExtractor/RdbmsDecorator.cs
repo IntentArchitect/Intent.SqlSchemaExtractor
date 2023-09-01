@@ -132,6 +132,8 @@ internal static class RdbmsDecorator
     {
         if (column.DataType.SqlDataType != SqlDataType.VarChar &&
              column.DataType.SqlDataType != SqlDataType.NVarChar &&
+             column.DataType.SqlDataType != SqlDataType.VarCharMax &&
+             column.DataType.SqlDataType != SqlDataType.NVarCharMax &&
              column.DataType.SqlDataType != SqlDataType.Text &&
              column.DataType.SqlDataType != SqlDataType.NText)
         {
@@ -143,8 +145,12 @@ internal static class RdbmsDecorator
             return;
         }
 
+
         var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.TextConstraints.DefinitionId, ster => InitTextConstraintStereotype(ster, column));
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.MaxLength).Value = column.DataType.MaximumLength.ToString("D");
+        if (column.DataType.MaximumLength != -1)
+        {
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.MaxLength).Value = column.DataType.MaximumLength.ToString("D");
+        }
 
         static void InitTextConstraintStereotype(StereotypePersistable stereotype, Column column)
         {
@@ -153,8 +159,10 @@ internal static class RdbmsDecorator
             stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
             stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.SqlDataType, prop =>
             {
+                string value = column.DataType.SqlDataType.ToString().ToUpper();
+                if (value.EndsWith("MAX")) { value = value.Substring(0, value.Length - 3); }                              
                 prop.Name = Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.SqlDataTypeName;
-                prop.Value = column.DataType.SqlDataType.ToString().ToUpper();
+                prop.Value = value;
             });
             stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.MaxLength, prop =>
             {
@@ -164,7 +172,7 @@ internal static class RdbmsDecorator
             stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.IsUnicode, prop =>
             {
                 prop.Name = Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.IsUnicodeName;
-                prop.Value = "false";
+                prop.Value = column.DataType.SqlDataType == SqlDataType.NVarChar || column.DataType.SqlDataType == SqlDataType.NVarCharMax ? "true" : "false";
             });
         }
     }

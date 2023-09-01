@@ -324,6 +324,10 @@ namespace Intent.SQLSchemaExtractor
                 }
 
                 var packageLocation = Path.Combine(directoryName, "Packages");
+#if DEBUG
+                if (Directory.Exists(packageLocation))
+                    Directory.Delete(packageLocation, true);
+#endif
                 fullPackagePath = Path.Combine(packageLocation, $"{packageNameOrPath}.pkg.config");
             }
             return (fullPackagePath, packageName);
