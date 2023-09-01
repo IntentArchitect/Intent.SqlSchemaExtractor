@@ -31,11 +31,19 @@ namespace Intent.SQLSchemaExtractor
             package.IsExternalOld = false;
 
             ApplyStereotypes(config, package);
-            ProcessTables(config, package);
-            ProcessForeignKeys(config, package);
-            ProcessViews(config, package);
-            ProcessStoredProcedures(config, package);
-
+            if (_config.ExportTables())
+            {
+                ProcessTables(config, package);
+                ProcessForeignKeys(config, package);
+            }
+            if (_config.ExportViews())
+            {
+                ProcessViews(config, package);
+            }
+            if (_config.ExportStoredProcedures())
+            {
+                ProcessStoredProcedures(config, package);
+            }
             package.References ??= new List<PackageReferenceModel>();
 
             return package;
@@ -70,6 +78,10 @@ namespace Intent.SQLSchemaExtractor
             var tableNumber = 0;
             foreach (Table table in filteredTables)
             {
+                if (!_config.ExportSchema(table.Schema))
+                {
+                    continue;
+                }
                 Console.WriteLine($"{table.Name} ({++tableNumber}/{tableCount})");
                 
                 var folder = package.GetOrCreateFolder(table.Schema);
@@ -145,6 +157,11 @@ namespace Intent.SQLSchemaExtractor
             var filteredTables = _db.Tables.OfType<Table>().Where(table => table.Name != "sysdiagrams").ToArray();
             foreach (Table table in filteredTables)
             {
+                if (!_config.ExportSchema(table.Schema))
+                {
+                    continue;
+                }
+
                 var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == table.ID.ToString() && x.IsClass());
                 var sourcePKs = GetPrimaryKeys(table);
                 foreach (ForeignKey foreignKey in table.ForeignKeys)
@@ -276,7 +293,13 @@ namespace Intent.SQLSchemaExtractor
             var viewNumber = 0;
             foreach (View view in filteredViews)
             {
+                if (!_config.ExportSchema(view.Schema))
+                {
+                    continue;
+                }
+
                 var folder = package.GetOrCreateFolder(view.Schema);
+                AddSchemaStereotype(folder, view.Schema);
                 var @class = package.GetOrCreateClass(folder.Id, view.ID.ToString(), view.Name);
 
                 Console.WriteLine($"{view.Name} ({++viewNumber}/{viewsCount})");
@@ -290,13 +313,13 @@ namespace Intent.SQLSchemaExtractor
                 {
                     var attribute = @class.GetOrCreateAttribute(view.Name, col.ID.ToString(), col.Name, col.Nullable);
 
+                    var typeId = GetTypeId(col.DataType);
+                    attribute.TypeReference.TypeId = typeId;
+
                     foreach (var handler in config.OnViewColumnHandlers)
                     {
                         handler(col, attribute);
                     }
-
-                    var typeId = GetTypeId(col.DataType);
-                    attribute.TypeReference.TypeId = typeId;
                 }
             }
         }
@@ -313,9 +336,15 @@ namespace Intent.SQLSchemaExtractor
             var storedProcsNumber = 0;
             foreach (StoredProcedure storedProc in filteredStoredProcs)
             {
+                if (!_config.ExportSchema(storedProc.Schema))
+                {
+                    continue;
+                }
+
                 Console.WriteLine($"{storedProc.Name} ({++storedProcsNumber}/{storedProcsCount})");
                 
                 var folder = package.GetOrCreateFolder(storedProc.Schema);
+                AddSchemaStereotype(folder, storedProc.Schema);
                 var repository = package.GetOrCreateRepository(folder.Id, storedProc.Schema, $"StoredProcedureRepository");
                 var repoStoredProc = repository.GetOrCreateStoredProcedure(storedProc.ID.ToString(), storedProc.Name);
                 // We're not setting the return type since its not simple to extract that from a SQL query
@@ -355,11 +384,6 @@ namespace Intent.SQLSchemaExtractor
                 }
 
                 var packageLocation = Path.Combine(directoryName, "Packages");
-                /*
-#if DEBUG
-                if (Directory.Exists(packageLocation))
-                    Directory.Delete(packageLocation, true);
-#endif*/
                 fullPackagePath = Path.Combine(packageLocation, $"{packageNameOrPath}.pkg.config");
             }
             return (fullPackagePath, packageName);
