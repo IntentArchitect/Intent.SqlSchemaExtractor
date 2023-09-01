@@ -94,6 +94,19 @@ public static class Constants
                 }
             }
 
+            public static class Schema
+            {
+                public const string DefinitionId = "c0f17219-ada3-47ac-80c6-7a5750cbd322";
+                public const string Name = "Schema";
+
+                public static class PropertyId
+                {
+                    public const string Name = "981470a5-f1b3-4781-a709-ea7500975ff5";
+                    public const string NameName = "Name";
+                }
+            }
+
+
             public static class DefaultConstraint
             {
                 public const string DefinitionId = "f21339bf-9ce6-4584-828f-de82089e3b72";

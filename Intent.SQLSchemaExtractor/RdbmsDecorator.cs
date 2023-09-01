@@ -2,6 +2,7 @@
 using System.Linq;
 using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
+using Intent.Modules.Common.Templates;
 using Microsoft.SqlServer.Management.Smo;
 using Index = Microsoft.SqlServer.Management.Smo.Index;
 
@@ -9,16 +10,17 @@ namespace Intent.SQLSchemaExtractor;
 
 internal static class RdbmsDecorator
 {
-    public static void ApplyTableDetails(Table table, ElementPersistable @class)
+    public static void ApplyTableDetails(Configuration config, Table table, ElementPersistable @class)
     {
+
+        if (!RequiresTableStereoType(config, table, @class))
+        {
+            return;
+        }
+
         var stereotype = @class.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Table.DefinitionId, InitTableStereotype);
         //For now always set this incase generated table names don't match the generated names due to things like pluralization
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name).Value = table.Name;
-
-        if (table.Schema != "dbo")
-        {
-            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema).Value = table.Schema;
-        }
 
         static void InitTableStereotype(StereotypePersistable stereotype)
         {
@@ -29,17 +31,29 @@ internal static class RdbmsDecorator
             stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Schema, _ => { });
         }
     }
-    
+
+    private static bool RequiresTableStereoType(Configuration config, Table table, ElementPersistable @class)
+    {
+        if (config.TableStereotypes == TableStereotypes.Always)
+        {
+            return true;
+        }
+        else if (config.TableStereotypes == TableStereotypes.WhenDifferent)
+        {
+            switch (config.EntityNameConvention) 
+            {
+                case EntityNameConvention.MatchTable: return @class.Name != table.Name;
+                case EntityNameConvention.SingularEntity: return @class.Name.Pluralize() != table.Name;
+            }
+        }
+        return false;
+    }
+
     public static void ApplyViewDetails(View view, ElementPersistable @class)
     {
         var stereotype = @class.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.View.DefinitionId, InitTableStereotype);
-        //For now always set this incase generated view names don't match the generated names due to things like pluralization
+        if (view.Name == @class.Name)
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.View.PropertyId.Name).Value = view.Name;
-
-        if (view.Schema != "dbo")
-        {
-            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.View.PropertyId.Schema).Value = view.Schema;
-        }
 
         static void InitTableStereotype(StereotypePersistable stereotype)
         {
@@ -231,6 +245,8 @@ internal static class RdbmsDecorator
 
         var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.ComputedValue.DefinitionId, InitComputedValueStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.Sql).Value = column.ComputedText;
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.Stored).Value = column.IsPersisted ? "true" : "false";
+
 
         static void InitComputedValueStereotype(StereotypePersistable stereotype)
         {

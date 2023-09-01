@@ -1,5 +1,6 @@
 ﻿using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
+using Intent.Metadata.Models;
 using Intent.Modules.Common.Templates;
 using Microsoft.SqlServer.Management.Smo;
 using System;
@@ -7,6 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Index = Microsoft.SqlServer.Management.Smo.Index;
 
 namespace Intent.SQLSchemaExtractor
@@ -14,10 +16,12 @@ namespace Intent.SQLSchemaExtractor
     public class SqlSchemaExtractor
     {
         private readonly Database _db;
+        private readonly Configuration _config;
 
-        public SqlSchemaExtractor(Database db)
+        public SqlSchemaExtractor(Configuration config, Database db)
         {
             _db = db;
+            _config = config;
         }
 
         public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtractorConfiguration config)
@@ -69,11 +73,12 @@ namespace Intent.SQLSchemaExtractor
                 Console.WriteLine($"{table.Name} ({++tableNumber}/{tableCount})");
                 
                 var folder = package.GetOrCreateFolder(table.Schema);
-                var @class = package.GetOrCreateClass(folder.Id, table.ID.ToString(), table.Name);
+                AddSchemaStereotype(folder, table.Schema);
+                var @class = package.GetOrCreateClass(folder.Id, table.ID.ToString(), GetEntityName(table.Name));
 
                 foreach (var handler in config.OnTableHandlers)
                 {
-                    handler(table, @class);
+                    handler(_config, table, @class);
                 }
 
                 foreach (Column col in table.Columns)
@@ -102,6 +107,32 @@ namespace Intent.SQLSchemaExtractor
                     }
                 }
             }
+        }
+
+        private string GetEntityName(string name)
+        {
+            return _config.EntityNameConvention switch
+            {
+                EntityNameConvention.SingularEntity => name.Singularize(false),
+                EntityNameConvention.MatchTable => name,
+                _ => name
+            };
+        }
+
+        private void AddSchemaStereotype(ElementPersistable folder, string schemaName)
+        {
+            folder.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Schema.DefinitionId, ster =>
+            {
+                ster.Name = Constants.Stereotypes.Rdbms.Schema.Name;
+                ster.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+                ster.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+                ster.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Schema.PropertyId.Name,
+                    prop =>
+                    {
+                        prop.Name = Constants.Stereotypes.Rdbms.Schema.PropertyId.NameName;
+                        prop.Value = schemaName;
+                    });
+            });
         }
 
         private void ProcessForeignKeys(SchemaExtractorConfiguration config, PackageModelPersistable package)
@@ -324,10 +355,11 @@ namespace Intent.SQLSchemaExtractor
                 }
 
                 var packageLocation = Path.Combine(directoryName, "Packages");
+                /*
 #if DEBUG
                 if (Directory.Exists(packageLocation))
                     Directory.Delete(packageLocation, true);
-#endif
+#endif*/
                 fullPackagePath = Path.Combine(packageLocation, $"{packageNameOrPath}.pkg.config");
             }
             return (fullPackagePath, packageName);
@@ -440,7 +472,7 @@ namespace Intent.SQLSchemaExtractor
 
     public class SchemaExtractorConfiguration
     {
-        public IEnumerable<Action<Table, ElementPersistable>> OnTableHandlers { get; set; } = new List<Action<Table, ElementPersistable>>();
+        public IEnumerable<Action<Configuration, Table, ElementPersistable>> OnTableHandlers { get; set; } = new List< Action<Configuration, Table, ElementPersistable>>();
         public IEnumerable<Action<Column, ElementPersistable>> OnTableColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
         public IEnumerable<Action<Index, ElementPersistable>> OnIndexHandlers { get; set; } = new List<Action<Index, ElementPersistable>>();
         public IEnumerable<Action<View, ElementPersistable>> OnViewHandlers { get; set; } = new List<Action<View, ElementPersistable>>();
