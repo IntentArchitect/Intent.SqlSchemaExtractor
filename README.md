@@ -63,7 +63,7 @@ The `--config-file` option expects the name of a file containing configuration o
 ```
 
 |JSon Setting                             |Type|Description|
-|-----------------------------------------|-----------|
+|-----------------------------------------|----|-----------|
 |EntityNameConvention                     |string  |The options are : `SingularEntity`(default),`MatchTable`. `SingularEntity` creates the domain entities as the singularization of the table name. `MatchTable` imports the entity with the same name as the Sql Table. |
 |TableStereotypes                         |string  |The options are : `WhenDifferent`(default),`Always`. `WhenDifferent` only applies `Table` stereotypes, if the SQL table name does not match the plural version of the `Entity`. This is in line with default Intent Architect behviours. `Always` table stereotypes are applied to all entities.|
 |TypesToExport                            |string[]|List of SQL Types to export. The valid options are `Table`, `View`, `StoredProcedure`. e.g. ["Table"] to only export tables. |
