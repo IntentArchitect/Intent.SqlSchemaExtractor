@@ -10,7 +10,7 @@ namespace Intent.SQLSchemaExtractor;
 
 internal static class RdbmsDecorator
 {
-    public static void ApplyTableDetails(Configuration config, Table table, ElementPersistable @class)
+    public static void ApplyTableDetails(ImportConfiguration config, Table table, ElementPersistable @class)
     {
 
         if (!RequiresTableStereoType(config, table, @class))
@@ -32,7 +32,7 @@ internal static class RdbmsDecorator
         }
     }
 
-    private static bool RequiresTableStereoType(Configuration config, Table table, ElementPersistable @class)
+    private static bool RequiresTableStereoType(ImportConfiguration config, Table table, ElementPersistable @class)
     {
         if (config.TableStereotypes == TableStereotypes.Always)
         {

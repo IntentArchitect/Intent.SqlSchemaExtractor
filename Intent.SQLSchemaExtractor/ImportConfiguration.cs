@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Intent.SQLSchemaExtractor
 {
-    public class Configuration
+    public class ImportConfiguration
     {
         public EntityNameConvention EntityNameConvention { get; set; } = EntityNameConvention.SingularEntity;
         public TableStereotypes TableStereotypes { get; set; } = TableStereotypes.WhenDifferent;
@@ -15,7 +15,10 @@ namespace Intent.SQLSchemaExtractor
 
         public HashSet<string> SchemaFilter { get; set; } = new HashSet<string>();
 
-        public Configuration()
+        public string? ConnectionString { get; set; }
+        public string? PackageFileName { get; set; }
+
+        public ImportConfiguration()
         {            
         }
 
@@ -40,6 +43,10 @@ namespace Intent.SQLSchemaExtractor
         {
             return TypesToExport.Contains(ExportTypes.StoredProcedure);
         }
+
+        public static void ConfigFile() { }
+        public static void GenerateConfigFile() { }
+
     }
 
     public enum ExportTypes

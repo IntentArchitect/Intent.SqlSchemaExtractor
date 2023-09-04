@@ -16,9 +16,9 @@ namespace Intent.SQLSchemaExtractor
     public class SqlSchemaExtractor
     {
         private readonly Database _db;
-        private readonly Configuration _config;
+        private readonly ImportConfiguration _config;
 
-        public SqlSchemaExtractor(Configuration config, Database db)
+        public SqlSchemaExtractor(ImportConfiguration config, Database db)
         {
             _db = db;
             _config = config;
@@ -496,7 +496,7 @@ namespace Intent.SQLSchemaExtractor
 
     public class SchemaExtractorConfiguration
     {
-        public IEnumerable<Action<Configuration, Table, ElementPersistable>> OnTableHandlers { get; set; } = new List< Action<Configuration, Table, ElementPersistable>>();
+        public IEnumerable<Action<ImportConfiguration, Table, ElementPersistable>> OnTableHandlers { get; set; } = new List< Action<ImportConfiguration, Table, ElementPersistable>>();
         public IEnumerable<Action<Column, ElementPersistable>> OnTableColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
         public IEnumerable<Action<Index, ElementPersistable>> OnIndexHandlers { get; set; } = new List<Action<Index, ElementPersistable>>();
         public IEnumerable<Action<View, ElementPersistable>> OnViewHandlers { get; set; } = new List<Action<View, ElementPersistable>>();

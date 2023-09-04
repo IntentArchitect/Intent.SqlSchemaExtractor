@@ -32,8 +32,43 @@ We advise this Intent Architect application and package exists in a Git (or simi
 
 From inside the `./Intent.SQLSchemaExtractor` folder use the `dotnet run` command (or alternatively open the `.sln` with your IDE and start it).
 
-When prompted to `Enter database connection:`, enter a [SQL server connection string](https://www.connectionstrings.com/sql-server/) for the database you want to connect to and from which the schema will be extracted and press return.
+### Options
 
-When prompted to `Enter output Intent Package:` paste the path you copied to your clipboard during the [above step](#have-an-output-package-created-in-intent-architect). As a reminder, [the output Intent Package should ideally be in Git (or similar SCM)](#use-git-or-similar-scm).
+|Option                                   |Description|
+|-----------------------------------------|-----------|
+|`--config-file <config-file>`            |Path to a [JSON formatted file](#configuration-file) containing options to use for execution of this tool. The `--generate-config-file` option can be used to generate a file with all the possible fields populated with null.|
+|`--generate-config-file`                 |Scaffolds into the current working directory a "config.json" for use with the `--config-file` option.|
+|`--connection-string <source-json-file>` |(optional)a [SQL server connection string](https://www.connectionstrings.com/sql-server/) for the database you want to connect to and from which the schema will be extracted. Note this will override the equivelant setting in the config file if it is specified there.|
+|`--package-file-name <source-json-file>` |(optional)The path and name to the where you would like the Domain package created / updated. Note this will override the equivelant setting in the config file if it is specified there.|
+|`--version`                              |Show version information|
+|`-?`, `-h`, `--help`                     |Show help and usage information|
+
+### Configuration file
+
+The `--config-file` option expects the name of a file containing configuration options to be used as an alternative to adding them as CLI options. A template for the configuration file can be generated using the `--generate-config-file` option. The content of the generated template is as follows:
+
+```json
+{
+  "EntityNameConvention": "SingularEntity",
+  "TableStereotypes": "WhenDifferent",
+  "TypesToExport": [
+    "Table",
+    "View",
+    "StoredProcedure"
+  ],
+  "SchemaFilter": [],
+  "ConnectionString": "Server=.;Initial Catalog=Test;Integrated Security=true;MultipleActiveResultSets=True;Encrypt=False;",
+  "PackageFileName": "bob"
+}
+```
+
+|JSon Setting                             |Type|Description|
+|-----------------------------------------|-----------|
+|EntityNameConvention                     |string  |The options are : `SingularEntity`(default),`MatchTable`. `SingularEntity` creates the domain entities as the singularization of the table name. `MatchTable` imports the entity with the same name as the Sql Table. |
+|TableStereotypes                         |string  |The options are : `WhenDifferent`(default),`Always`. `WhenDifferent` only applies `Table` stereotypes, if the SQL table name does not match the plural version of the `Entity`. This is in line with default Intent Architect behviours. `Always` table stereotypes are applied to all entities.|
+|TypesToExport                            |string[]|List of SQL Types to export. The valid options are `Table`, `View`, `StoredProcedure`. e.g. ["Table"] to only export tables. |
+|SchemaFilter                             |string[]|List of schema's to export. If the list is empty, all schemas are exported. e.g. ["dbo", "admin"]|
+|ConnectionString                         |string  |A [SQL server connection string](https://www.connectionstrings.com/sql-server/) for the database you want to connect to and from which the schema will be extracted.|
+|PackageFileName                          |string  |The path and name to the where you would like the Domain package created / updated.|
 
 As the program executes it will write to the console each _class_ and _relationship_ it creates and should finally say `Package saved successfully`.
