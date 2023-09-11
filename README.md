@@ -58,7 +58,7 @@ The `--config-file` option expects the name of a file containing configuration o
   ],
   "SchemaFilter": [],
   "ConnectionString": "Server=.;Initial Catalog=Test;Integrated Security=true;MultipleActiveResultSets=True;Encrypt=False;",
-  "PackageFileName": "bob"
+  "PackageFileName": "MyDomain"
 }
 ```
 
