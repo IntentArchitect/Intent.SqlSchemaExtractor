@@ -1,14 +1,13 @@
 ﻿using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
-using Intent.Metadata.Models;
 using Intent.Modules.Common.Templates;
 using Microsoft.SqlServer.Management.Smo;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using Index = Microsoft.SqlServer.Management.Smo.Index;
 
 namespace Intent.SQLSchemaExtractor
@@ -36,14 +35,17 @@ namespace Intent.SQLSchemaExtractor
                 ProcessTables(config, package);
                 ProcessForeignKeys(config, package);
             }
+
             if (_config.ExportViews())
             {
                 ProcessViews(config, package);
             }
+
             if (_config.ExportStoredProcedures())
             {
                 ProcessStoredProcedures(config, package);
             }
+
             package.References ??= new List<PackageReferenceModel>();
 
             return package;
@@ -72,7 +74,7 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine("Tables");
             Console.WriteLine("======");
             Console.WriteLine();
-            
+
             var filteredTables = _db.Tables.OfType<Table>().Where(table => table.Name is not "sysdiagrams").ToArray();
             var tableCount = filteredTables.Length;
             var tableNumber = 0;
@@ -82,8 +84,9 @@ namespace Intent.SQLSchemaExtractor
                 {
                     continue;
                 }
+
                 Console.WriteLine($"{table.Name} ({++tableNumber}/{tableCount})");
-                
+
                 var folder = package.GetOrCreateFolder(table.Schema);
                 AddSchemaStereotype(folder, table.Schema);
                 var @class = package.GetOrCreateClass(folder.Id, table.ID.ToString(), GetEntityName(table.Name));
@@ -153,7 +156,7 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine("Foreign Keys");
             Console.WriteLine("============");
             Console.WriteLine();
-            
+
             var filteredTables = _db.Tables.OfType<Table>().Where(table => table.Name != "sysdiagrams").ToArray();
             foreach (Table table in filteredTables)
             {
@@ -192,7 +195,8 @@ namespace Intent.SQLSchemaExtractor
                                 targetName = singularTableName;
                                 break;
                             default:
-                                targetName = sourceColumns[0].Name.Substring(0, sourceColumns[0].Name.IndexOf(targetTable.Name, StringComparison.Ordinal) + targetTable.Name.Length);
+                                targetName = sourceColumns[0].Name
+                                    .Substring(0, sourceColumns[0].Name.IndexOf(targetTable.Name, StringComparison.Ordinal) + targetTable.Name.Length);
                                 break;
                         }
                     }
@@ -280,14 +284,14 @@ namespace Intent.SQLSchemaExtractor
                 }
             }
         }
-        
+
         private void ProcessViews(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
             Console.WriteLine();
             Console.WriteLine("Views");
             Console.WriteLine("=====");
             Console.WriteLine();
-            
+
             var filteredViews = _db.Views.OfType<View>().Where(view => view.Schema is not "sys" and not "INFORMATION_SCHEMA").ToArray();
             var viewsCount = filteredViews.Length;
             var viewNumber = 0;
@@ -303,12 +307,12 @@ namespace Intent.SQLSchemaExtractor
                 var @class = package.GetOrCreateClass(folder.Id, view.ID.ToString(), view.Name);
 
                 Console.WriteLine($"{view.Name} ({++viewNumber}/{viewsCount})");
-                
+
                 foreach (var handler in config.OnViewHandlers)
                 {
                     handler(view, @class);
                 }
-                
+
                 foreach (Column col in view.Columns)
                 {
                     var attribute = @class.GetOrCreateAttribute(view.Name, col.ID.ToString(), col.Name, col.Nullable);
@@ -323,7 +327,7 @@ namespace Intent.SQLSchemaExtractor
                 }
             }
         }
-        
+
         private void ProcessStoredProcedures(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
             Console.WriteLine();
@@ -342,12 +346,26 @@ namespace Intent.SQLSchemaExtractor
                 }
 
                 Console.WriteLine($"{storedProc.Name} ({++storedProcsNumber}/{storedProcsCount})");
-                
+
                 var folder = package.GetOrCreateFolder(storedProc.Schema);
                 AddSchemaStereotype(folder, storedProc.Schema);
                 var repository = package.GetOrCreateRepository(folder.Id, storedProc.Schema, $"StoredProcedureRepository");
                 var repoStoredProc = repository.GetOrCreateStoredProcedure(storedProc.ID.ToString(), storedProc.Name);
-                // We're not setting the return type since its not simple to extract that from a SQL query
+
+                var tableId = GetTableIdInResultSet(storedProc);
+                if (tableId is not null)
+                {
+                    var @class = package.GetOrCreateClass(null, tableId, null);
+                    repoStoredProc.TypeReference = new TypeReferencePersistable
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        IsNullable = false,
+                        IsCollection = false,
+                        Stereotypes = new List<StereotypePersistable>(),
+                        GenericTypeParameters = new List<TypeReferencePersistable>(),
+                        TypeId = @class.Id
+                    };
+                }
 
                 foreach (StoredProcedureParameter procParameter in storedProc.Parameters)
                 {
@@ -355,12 +373,60 @@ namespace Intent.SQLSchemaExtractor
                     var typeId = GetTypeId(procParameter.DataType);
                     param.TypeReference.TypeId = typeId;
                 }
-                
+
                 foreach (var handler in config.OnStoredProcedureHandlers)
                 {
                     handler(storedProc, repoStoredProc);
                 }
             }
+        }
+
+        private string GetTableIdInResultSet(StoredProcedure storedProc)
+        {
+            var describeResults = _db.ExecuteWithResults($@"
+EXEC sp_describe_first_result_set 
+    @tsql = N'EXEC {storedProc.Name}',
+    @params = N'',
+    @browse_information_mode = 1");
+
+            if (describeResults.Tables.Count == 0)
+            {
+                return null;
+            }
+
+            var dataTable = describeResults.Tables[0];
+
+            string sourceSchema = null;
+            string sourceTable = null;
+
+            foreach (DataRow row in dataTable.Rows)
+            {
+                var schema = row["source_schema"].ToString();
+                var table = row["source_table"].ToString();
+
+                // If the source schema is already set and it's different from the current row's schema
+                if (sourceSchema != null && sourceSchema != schema)
+                {
+                    return null;
+                }
+
+                // If the source table is already set and it's different from the current row's table
+                if (sourceTable != null && sourceTable != table)
+                {
+                    return null;
+                }
+
+                sourceSchema = schema;
+                sourceTable = table;
+            }
+
+            var tableIdResults = _db.ExecuteWithResults($@"SELECT OBJECT_ID('{sourceSchema}.{sourceTable}') AS TableID;");
+            if (tableIdResults.Tables.Count != 1)
+            {
+                return null;
+            }
+
+            return tableIdResults.Tables[0].Rows[0]["TableID"].ToString();
         }
 
         private static (string fullPackagePath, string packageName) GetPackageLocationAndName(string packageNameOrPath)
@@ -386,6 +452,7 @@ namespace Intent.SQLSchemaExtractor
                 var packageLocation = Path.Combine(directoryName, "Packages");
                 fullPackagePath = Path.Combine(packageLocation, $"{packageNameOrPath}.pkg.config");
             }
+
             return (fullPackagePath, packageName);
         }
 
@@ -496,7 +563,9 @@ namespace Intent.SQLSchemaExtractor
 
     public class SchemaExtractorConfiguration
     {
-        public IEnumerable<Action<ImportConfiguration, Table, ElementPersistable>> OnTableHandlers { get; set; } = new List< Action<ImportConfiguration, Table, ElementPersistable>>();
+        public IEnumerable<Action<ImportConfiguration, Table, ElementPersistable>> OnTableHandlers { get; set; } =
+            new List<Action<ImportConfiguration, Table, ElementPersistable>>();
+
         public IEnumerable<Action<Column, ElementPersistable>> OnTableColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
         public IEnumerable<Action<Index, ElementPersistable>> OnIndexHandlers { get; set; } = new List<Action<Index, ElementPersistable>>();
         public IEnumerable<Action<View, ElementPersistable>> OnViewHandlers { get; set; } = new List<Action<View, ElementPersistable>>();
