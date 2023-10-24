@@ -32,6 +32,12 @@ We advise this Intent Architect application and package exists in a Git (or simi
 
 From inside the `./Intent.SQLSchemaExtractor` folder use the `dotnet run` command (or alternatively open the `.sln` with your IDE and start it).
 
+> [!TIP]
+> Although the importer has been well tested and every effort has been to ensure it works as expected, importing database schemas is inherently complicated, as such, you should ensure you have a clean working tree in your source control before importing in case of any unexpected changes.
+
+> [!NOTE]
+> To track renamed schema elements, such as changing column or table names, the importer uses SQL schema object IDs to correlate items in Intent to the database between different executions of the importer. If you connect to a different SQL server instance, although the schema may be "logically" similar, the ObjectIDs may be completely different causing the importer to create duplicates.
+
 ### Options
 
 |Option                                   |Description|
