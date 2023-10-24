@@ -399,6 +399,11 @@ EXEC sp_describe_first_result_set
             string sourceSchema = null;
             string sourceTable = null;
 
+            if (!dataTable.Columns.Contains("source_schema") || !dataTable.Columns.Contains("source_table"))
+            {
+                return null;
+            }
+            
             foreach (DataRow row in dataTable.Rows)
             {
                 var schema = row["source_schema"].ToString();
