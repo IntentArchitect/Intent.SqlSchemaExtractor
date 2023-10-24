@@ -8,6 +8,7 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Microsoft.SqlServer.Management.Common;
 using Index = Microsoft.SqlServer.Management.Smo.Index;
 
 namespace Intent.SQLSchemaExtractor
@@ -383,11 +384,19 @@ namespace Intent.SQLSchemaExtractor
 
         private string GetTableIdInResultSet(StoredProcedure storedProc)
         {
-            var describeResults = _db.ExecuteWithResults($@"
+            DataSet describeResults = null;
+            try
+            {
+                describeResults = _db.ExecuteWithResults($@"
 EXEC sp_describe_first_result_set 
     @tsql = N'EXEC {storedProc.Name}',
     @params = N'',
     @browse_information_mode = 1");
+            }
+            catch
+            {
+                return null;
+            }
 
             if (describeResults.Tables.Count == 0)
             {
@@ -431,7 +440,12 @@ EXEC sp_describe_first_result_set
                 return null;
             }
 
-            return tableIdResults.Tables[0].Rows[0]["TableID"].ToString();
+            var tableId = tableIdResults.Tables[0].Rows[0]["TableID"].ToString();
+            if (string.IsNullOrWhiteSpace(tableId))
+            {
+                return null;
+            }
+            return tableId;
         }
 
         private static (string fullPackagePath, string packageName) GetPackageLocationAndName(string packageNameOrPath)
