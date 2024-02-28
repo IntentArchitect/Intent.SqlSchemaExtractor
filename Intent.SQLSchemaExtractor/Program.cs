@@ -119,7 +119,7 @@ namespace Intent.SQLSchemaExtractor
 
         }
 
-        private static void Run(ImportConfiguration config)
+        public static void Run(ImportConfiguration config)
         {
             var connection = new SqlConnection(config.ConnectionString);
             connection.Open();
