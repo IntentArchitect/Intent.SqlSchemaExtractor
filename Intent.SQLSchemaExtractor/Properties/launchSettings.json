@@ -1,7 +1,8 @@
 {
   "profiles": {
     "Intent.SQLSchemaExtractor": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "commandLineArgs": "--serialized-config \"{\\\"EntityNameConvention\\\":\\\"SingularEntity\\\",\\\"TableStereotypes\\\":\\\"WhenDifferent\\\",\\\"TypesToExport\\\":[\\\"Table\\\",\\\"View\\\",\\\"StoredProcedure\\\"],\\\"SchemaFilter\\\":[],\\\"ConnectionString\\\":\\\"Server=.;Initial Catalog=COREDB_AGA;Integrated Security=false;MultipleActiveResultSets=True;Encrypt=False;User Id =sa;Password=IntentP@ssword123\\\",\\\"PackageFileName\\\":\\\"C:\\\\Workshop\\\\ImportTest2\\\\intent\\\\ImportTest2\\\\Intent.Metadata\\\\Domain\\\\Domain\\\\Domain.pkg.config\\\",\\\"SettingPersistence\\\":\\\"All\\\"}\""
     }
   }
 }

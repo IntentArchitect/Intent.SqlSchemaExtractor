@@ -15,6 +15,9 @@ using Microsoft.Data.SqlClient;
 using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.Smo;
 using Intent.IArchitect.Agent.Persistence;
+using Intent.IArchitect.Agent.Persistence.Model;
+using Newtonsoft.Json.Linq;
+using System.Data.Common;
 
 namespace Intent.SQLSchemaExtractor
 {
@@ -54,56 +57,72 @@ namespace Intent.SQLSchemaExtractor
                 new Option<string?>(
                     name: GetOptionName(nameof(ImportConfiguration.PackageFileName)),
                     description: "The file name of the Intent Domain Package into which to synchronize the metadata."),
-            };
+				new Option<string?>(
+					name: GetOptionName(nameof(ImportConfiguration.SerializedConfig)),
+					description: "json string representing a serialized configuration file."),
+			};
 
             rootCommand.SetHandler(
                 handle: (
                     FileInfo? configFile,
                     bool generateConfigFile,
                     string? connectionString,
-                    string? packageFileName
+                    string? packageFileName,
+                    string? serializedConfig
                     ) =>
                 {
-                    var serializerOptions = new JsonSerializerOptions
+                    try
                     {
-                        Converters = { new JsonStringEnumConverter() },
-                        WriteIndented = true
-                    };
+                        var serializerOptions = new JsonSerializerOptions
+                        {
+                            Converters = { new JsonStringEnumConverter() },
+                            WriteIndented = true
+                        };
 
-                    if (generateConfigFile)
-                    {
-                        var path = System.IO.Path.Join(Environment.CurrentDirectory, "config.json");
-                        Console.WriteLine($"Writing {path}...");
-                        File.WriteAllBytes(path, JsonSerializer.SerializeToUtf8Bytes(new ImportConfiguration(), serializerOptions));
-                        Console.WriteLine("Done.");
-                        return;
+                        if (generateConfigFile)
+                        {
+                            var path = System.IO.Path.Join(Environment.CurrentDirectory, "config.json");
+                            Console.WriteLine($"Writing {path}...");
+                            File.WriteAllBytes(path, JsonSerializer.SerializeToUtf8Bytes(new ImportConfiguration(), serializerOptions));
+                            Console.WriteLine("Done.");
+                            return;
+                        }
+
+                        ImportConfiguration config;
+                        if (serializedConfig != null)
+                        {
+							config = JsonSerializer.Deserialize<ImportConfiguration>(serializedConfig, serializerOptions)
+										 ?? throw new Exception($"Parsing of serialized-config returned null.");
+						}
+						else if (configFile != null)
+                        {
+                            config = JsonSerializer.Deserialize<ImportConfiguration>(File.ReadAllText(configFile.FullName), serializerOptions)
+                                         ?? throw new Exception($"Parsing of \"{configFile.FullName}\" returned null.");
+                        }
+                        else
+                        {
+                            config = new ImportConfiguration();
+                        }
+
+                        if (connectionString != null)
+                            config.ConnectionString = connectionString;
+                        if (packageFileName != null)
+                            config.PackageFileName = packageFileName;
+
+
+                        if (string.IsNullOrEmpty(config.ConnectionString))
+                            throw new Exception($"{GetOptionName(nameof(ImportConfiguration.ConnectionString))} is mandatory or a --config-file with a connection string.");
+
+                        if (string.IsNullOrEmpty(config.PackageFileName))
+                            throw new Exception($"{GetOptionName(nameof(ImportConfiguration.PackageFileName))} is mandatory or a --config-file with a package file name.");
+
+                        Run(config);
                     }
-
-                    ImportConfiguration config;
-                    if (configFile != null)
+                    catch (Exception exception)
                     {
-                        config = JsonSerializer.Deserialize<ImportConfiguration>(File.ReadAllText(configFile.FullName), serializerOptions)
-                                     ?? throw new Exception($"Parsing of \"{configFile.FullName}\" returned null.");
+                        Console.WriteLine($"Error : {exception.GetBaseException().Message}");
+                        throw;
                     }
-                    else
-                    {
-                        config = new ImportConfiguration();
-                    }
-
-                    if (connectionString != null)
-                        config.ConnectionString = connectionString;
-                    if (packageFileName != null)
-                        config.PackageFileName = packageFileName;
-
-
-                    if (string.IsNullOrEmpty(config.ConnectionString))
-                        throw new Exception($"{GetOptionName(nameof(ImportConfiguration.ConnectionString))} is mandatory or a --config-file with a connection string.");
-
-                    if (string.IsNullOrEmpty(config.PackageFileName))
-                        throw new Exception($"{GetOptionName(nameof(ImportConfiguration.PackageFileName))} is mandatory or a --config-file with a package file name.");
-
-                    Run(config);
-
 
                 },
                 symbols: Enumerable.Empty<IValueDescriptor>()
@@ -189,12 +208,58 @@ namespace Intent.SQLSchemaExtractor
                 Module = "Intent.EntityFrameworkCore.Repositories",
                 IsExternal = true
             });
+			if (config.SettingPersistence != SettingPersistence.None)
+			{
+                string connectionString = config.ConnectionString!;
 
-            Console.WriteLine("Saving package...");
+                if (config.SettingPersistence == SettingPersistence.AllSanitisedConnectionString)
+                {
+					var builder = new SqlConnectionStringBuilder();
+					builder.ConnectionString = connectionString;
+
+					bool addPassword = false;
+					if (builder.Remove("Password"))
+					{
+						addPassword = true;
+					}
+					var sanatisedConnectionString = builder.ConnectionString;
+					if (addPassword)
+					{
+						sanatisedConnectionString = "Password=  ;" + sanatisedConnectionString;
+					}
+                    connectionString = sanatisedConnectionString;
+				}
+
+				if (config.SettingPersistence == SettingPersistence.AllWithoutConnectionString)
+                {
+					package.RemoveMetadata("sql-import:connectionString");
+                }
+                else
+                {
+					package.AddMetadata("sql-import:connectionString", connectionString);
+				}
+				package.AddMetadata("sql-import:tableStereotypes", config.TableStereotypes.ToString() );
+				package.AddMetadata("sql-import:entityNameConvention", config.EntityNameConvention.ToString());
+				package.AddMetadata("sql-import:schemaFilter", config.SchemaFilter.Any() ? string.Join(";", config.SchemaFilter) : "");
+				package.AddMetadata("sql-import:typesToExport", config.TypesToExport.Any() ? string.Join(";", config.TypesToExport.Select(t => t.ToString())) : "");
+				package.AddMetadata("sql-import:settingPersistence", config.SettingPersistence.ToString());
+			}
+			else
+            {
+				package.RemoveMetadata("sql-import:connectionString");
+				package.RemoveMetadata("sql-import:tableStereotypes");
+				package.RemoveMetadata("sql-import:entityNameConvention");
+				package.RemoveMetadata("sql-import:schemaFilter");
+				package.RemoveMetadata("sql-import:typesToExport");
+				package.RemoveMetadata("sql-import:settingPersistence");
+			}
+
+			Console.WriteLine("Saving package...");
             package.Save();
 
             Console.WriteLine("Package saved successfully.");
             Console.WriteLine();
         }
+
     }
 }

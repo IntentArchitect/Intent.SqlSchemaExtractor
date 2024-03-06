@@ -18,7 +18,9 @@ namespace Intent.SQLSchemaExtractor
         public string? ConnectionString { get; set; }
         public string? PackageFileName { get; set; }
 
-        public ImportConfiguration()
+        public SettingPersistence SettingPersistence { get; set; } = SettingPersistence.None;
+
+		public ImportConfiguration()
         {            
         }
 
@@ -46,10 +48,10 @@ namespace Intent.SQLSchemaExtractor
 
         public static void ConfigFile() { }
         public static void GenerateConfigFile() { }
+		public static void SerializedConfig() { }
+	}
 
-    }
-
-    public enum ExportTypes
+	public enum ExportTypes
     {
         Table,
         View,
@@ -67,4 +69,13 @@ namespace Intent.SQLSchemaExtractor
         MatchTable,
         SingularEntity,
     }
+
+	public enum SettingPersistence
+	{
+		None,
+		AllSanitisedConnectionString,
+		AllWithoutConnectionString,
+		All,
+	}
+
 }
