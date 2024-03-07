@@ -2,7 +2,7 @@
   "profiles": {
     "Intent.SQLSchemaExtractor": {
       "commandName": "Project",
-      "commandLineArgs": "--serialized-config \"{\\\"EntityNameConvention\\\":\\\"SingularEntity\\\",\\\"TableStereotypes\\\":\\\"WhenDifferent\\\",\\\"TypesToExport\\\":[\\\"Table\\\",\\\"View\\\",\\\"StoredProcedure\\\"],\\\"SchemaFilter\\\":[],\\\"ConnectionString\\\":\\\"Server=.;Initial Catalog=COREDB_AGA;Integrated Security=false;MultipleActiveResultSets=True;Encrypt=False;User Id =sa;Password=IntentP@ssword123\\\",\\\"PackageFileName\\\":\\\"C:\\\\Workshop\\\\ImportTest2\\\\intent\\\\ImportTest2\\\\Intent.Metadata\\\\Domain\\\\Domain\\\\Domain.pkg.config\\\",\\\"SettingPersistence\\\":\\\"All\\\"}\""
+      "commandLineArgs": "--serialized-config \"{\\\"ApplicationId\\\":\\\"2384d456-ad75-4eed-bb2f-a26b291a9968\\\",\\\"DesignerId\\\":\\\"6ab29b31-27af-4f56-a67c-986d82097d63\\\",\\\"PackageId\\\":\\\"91ae51ba-4ec8-4b20-86f8-7cdea06fc897\\\",\\\"EntityNameConvention\\\":\\\"SingularEntity\\\",\\\"TableStereotypes\\\":\\\"WhenDifferent\\\",\\\"TypesToExport\\\":[\\\"View\\\",\\\"StoredProcedure\\\"],\\\"SchemaFilter\\\":[],\\\"ConnectionString\\\":\\\"Server=.;Initial Catalog=COREDB_AGA;Integrated Security=false;MultipleActiveResultSets=True;Encrypt=False;User Id =sa;Password=IntentP@ssword123\\\",\\\"PackageFileName\\\":\\\"C:\\\\Workshop\\\\ImportTest2\\\\intent\\\\ImportTest2\\\\Intent.Metadata\\\\Domain\\\\Domain\\\\Domain.pkg.config\\\",\\\"SettingPersistence\\\":\\\"All\\\"}\""
     }
   }
 }
