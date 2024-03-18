@@ -202,11 +202,12 @@ namespace Intent.SQLSchemaExtractor
                         }
                     }
 
+                    bool skip = false;
                     var association = package.Associations.SingleOrDefault(x => x.ExternalReference == foreignKey.ID.ToString());
                     if (association is null)
                     {
-                        var associationId = Guid.NewGuid().ToString();
-                        package.Associations.Add(association = new AssociationPersistable()
+						var associationId = Guid.NewGuid().ToString();
+                        association = new AssociationPersistable()
                         {
                             Id = associationId,
                             ExternalReference = foreignKey.ID.ToString(),
@@ -239,10 +240,20 @@ namespace Intent.SQLSchemaExtractor
                                 },
                                 Stereotypes = new List<StereotypePersistable>()
                             }
-                        });
-                    }
+                        };
+                        if (!SameAssociationExistsWithReverseOwnership(package.Associations, association))
+                        {
+                            package.Associations.Add(association);
+                        }
+                        else
+						{
+                            skip = true;
+							Console.Write($"Skipping - ");
+						}
 
-                    Console.WriteLine($"{table.Name}: {sourceColumns[0].Name} " +
+					}
+
+					Console.WriteLine($"{table.Name}: {sourceColumns[0].Name} " +
                                       $"[{(association.SourceEnd.TypeReference.IsNullable ? "0" : "1")}..{(association.SourceEnd.TypeReference.IsCollection ? "*" : "1")}] " +
                                       "--> " +
                                       $"[{(association.TargetEnd.TypeReference.IsNullable ? "0" : "1")}..{(association.TargetEnd.TypeReference.IsCollection ? "*" : "1")}] " +
@@ -251,7 +262,7 @@ namespace Intent.SQLSchemaExtractor
                     var attribute = @class.ChildElements
                         .FirstOrDefault(p => p.SpecializationType == "Attribute" &&
                                              p.ExternalReference == sourceColumns[0].ID.ToString());
-                    if (attribute is not null)
+                    if (attribute is not null && !skip)
                     {
                         if (attribute.Metadata.All(p => p.Key != "fk-original-name"))
                         {
@@ -281,12 +292,40 @@ namespace Intent.SQLSchemaExtractor
                             })
                             .GetOrCreateProperty(Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.Association)
                             .Value = association.TargetEnd.Id;
-                    }
-                }
-            }
+					}
+					if (attribute is not null && HasDefaultForeignKeyIndex(attribute, out var index))
+					{
+						attribute.Stereotypes.Remove(index);
+					}
+				}
+			}
         }
 
-        private void ProcessViews(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        /// <summary>
+        /// This is to catch associations which have been manually fixed and not overwrite them
+        /// Associations with reverse ownership might have been recreated and the external ref has been lost
+        /// </summary>
+		private bool SameAssociationExistsWithReverseOwnership(IList<AssociationPersistable> associations, AssociationPersistable association)
+		{
+            return associations.FirstOrDefault(a => 
+                a.SourceEnd.TypeReference.TypeId == association.TargetEnd.TypeReference.TypeId &&
+				a.TargetEnd.TypeReference.TypeId == association.SourceEnd.TypeReference.TypeId &&
+				a.SourceEnd.TypeReference.IsNullable == association.TargetEnd.TypeReference.IsNullable &&
+				a.SourceEnd.TypeReference.IsCollection == association.TargetEnd.TypeReference.IsCollection &&
+				a.TargetEnd.TypeReference.IsNullable == association.SourceEnd.TypeReference.IsNullable &&
+				a.TargetEnd.TypeReference.IsCollection == association.SourceEnd.TypeReference.IsCollection
+				) != null;
+		}
+
+		private bool HasDefaultForeignKeyIndex(ElementPersistable attribute, out StereotypePersistable? foundIndex)
+        {
+			foundIndex = attribute.Stereotypes.FirstOrDefault(s =>
+                s.DefinitionId == Constants.Stereotypes.Rdbms.Index.DefinitionId &&
+                s.Properties.FirstOrDefault(p => p.Name == "UniqueKey")?.Value == $"IX_{attribute.Name}");
+            return foundIndex != null;
+		}
+
+		private void ProcessViews(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
             Console.WriteLine();
             Console.WriteLine("Views");

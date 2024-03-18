@@ -160,26 +160,36 @@ namespace Intent.SQLSchemaExtractor
 
         public static ElementPersistable GetOrCreateAttribute(this ElementPersistable @class, string tableOrViewName, string externalReference, string attributeName, bool nullable)
         {
-            var element = @class.ChildElements.SingleOrDefault(x => x.ExternalReference == externalReference);
+			var element = @class.ChildElements.SingleOrDefault(x => x.ExternalReference == externalReference);
             if (element is null)
             {
-                @class.ChildElements.Add(element = new ElementPersistable
+				string transformedAttributeName = DeDuplicate(NormalizeColumnName(attributeName, tableOrViewName), @class.Name);
+                //Basically patching up Foreign Key attributes which have been manually fixed
+				element = @class.ChildElements.SingleOrDefault(x => x.Name == transformedAttributeName);
+                if (element != null)
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    Name = DeDuplicate(NormalizeColumnName(attributeName, tableOrViewName), @class.Name),
-                    SpecializationTypeId = AttributeType.Id,
-                    SpecializationType = AttributeType.Name,
-                    Stereotypes = new List<StereotypePersistable>(),
-                    TypeReference = new TypeReferencePersistable()
+                    element.ExternalReference = externalReference;
+				}
+                else
+                {
+                    @class.ChildElements.Add(element = new ElementPersistable
                     {
                         Id = Guid.NewGuid().ToString(),
-                        IsNullable = nullable,
-                        IsCollection = false,
+                        Name = transformedAttributeName,
+                        SpecializationTypeId = AttributeType.Id,
+                        SpecializationType = AttributeType.Name,
                         Stereotypes = new List<StereotypePersistable>(),
-                        GenericTypeParameters = new List<TypeReferencePersistable>()
-                    },
-                    ExternalReference = externalReference
-                });
+                        TypeReference = new TypeReferencePersistable()
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            IsNullable = nullable,
+                            IsCollection = false,
+                            Stereotypes = new List<StereotypePersistable>(),
+                            GenericTypeParameters = new List<TypeReferencePersistable>()
+                        },
+                        ExternalReference = externalReference
+                    });
+				}
             }
             if (!element.IsAttribute())
             {

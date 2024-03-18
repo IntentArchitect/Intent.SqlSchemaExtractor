@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Security.Principal;
 using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
 using Intent.Modules.Common.Templates;
@@ -265,6 +266,7 @@ internal static class RdbmsDecorator
     public static void ApplyIndex(Index index, ElementPersistable @class)
     {
         var indexKeyName = $"IX_{string.Join("_", index.IndexedColumns.Cast<IndexedColumn>().Select(s => s.Name))}";
+
         foreach (var attribute in @class.ChildElements.Where(p => p.SpecializationType == "Attribute"))
         {
             var columnSqlName = attribute.TryGetStereotypeProperty(
@@ -297,7 +299,8 @@ internal static class RdbmsDecorator
         }
     }
 
-    public static void ApplyStoredProcedureSettings(StoredProcedure sqlStoredProc, ElementPersistable elementStoredProc)
+
+	public static void ApplyStoredProcedureSettings(StoredProcedure sqlStoredProc, ElementPersistable elementStoredProc)
     {
         var stereotype = elementStoredProc.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.StoredProcedure.DefinitionId, InitStoredProcStereotype);
         if (sqlStoredProc.Name != elementStoredProc.Name)
