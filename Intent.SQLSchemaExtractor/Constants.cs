@@ -33,8 +33,9 @@ public static class Constants
             public const string Date = "1fbaa056-b666-4f25-b8fd-76fe3165acc8";
             public const string Guid = "6b649125-18ea-48fd-a6ba-0bfff0d8f488";
             public const string DatetimeOffset = "f1ba4df3-a5bc-427e-a591-4f6029f89bd7";
-        }
-    }
+			public const string TimeSpan = "46dbdc6c-aaa7-4d2e-ba1f-81abdb87a888";
+		}
+	}
 
     public static class Stereotypes
     {

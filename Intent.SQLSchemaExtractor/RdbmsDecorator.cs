@@ -138,7 +138,8 @@ internal static class RdbmsDecorator
                 Constants.TypeDefinitions.CommonTypes.Date when column.DataType.SqlDataType == SqlDataType.Date => true,
                 Constants.TypeDefinitions.CommonTypes.Guid when column.DataType.SqlDataType == SqlDataType.UniqueIdentifier => true,
                 Constants.TypeDefinitions.CommonTypes.DatetimeOffset when column.DataType.SqlDataType == SqlDataType.DateTimeOffset => true,
-                _ => false
+				Constants.TypeDefinitions.CommonTypes.TimeSpan when column.DataType.SqlDataType == SqlDataType.Time => true,
+				_ => false
             };
         }
     }

@@ -569,7 +569,8 @@ EXEC sp_describe_first_result_set
                 case SqlDataType.NText:
                     return Constants.TypeDefinitions.CommonTypes.String;
                 case SqlDataType.Time:
-                case SqlDataType.BigInt:
+					return Constants.TypeDefinitions.CommonTypes.TimeSpan;
+				case SqlDataType.BigInt:
                     return Constants.TypeDefinitions.CommonTypes.Long;
                 case SqlDataType.Int:
                     return Constants.TypeDefinitions.CommonTypes.Int;
