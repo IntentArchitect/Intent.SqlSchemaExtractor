@@ -92,9 +92,13 @@ namespace Intent.SQLSchemaExtractor
 
                 var folder = package.GetOrCreateFolder(table.Schema);
                 AddSchemaStereotype(folder, table.Schema);
-                var @class = package.GetClass(table.ID.ToString());
+                var @class = package.GetClass(table.ID.ToString(), GetEntityName(table.Name));
+				if (table.Name == "Account" || table.Name == "BatchContribution")
+				{
 
-                if (@class != null)
+				}
+
+				if (@class != null)
                 {
                     foreach (Index tableIndex in table.Indexes)
                     {

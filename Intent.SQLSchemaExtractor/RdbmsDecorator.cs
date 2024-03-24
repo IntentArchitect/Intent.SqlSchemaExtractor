@@ -287,7 +287,7 @@ internal static class RdbmsDecorator
 
         foreach (IndexedColumn indexColumn in index.IndexedColumns) 
         {
-            var attribute = @class.ChildElements.Where(p => p.SpecializationType == "Attribute").FirstOrDefault(a => a.Name == indexColumn.Name || 
+            var attribute = @class.ChildElements.Where(p => p.SpecializationType == "Attribute").FirstOrDefault(a => string.Equals(a.Name, indexColumn.Name, StringComparison.OrdinalIgnoreCase)  || 
                 (a.TryGetStereotypeProperty(Constants.Stereotypes.Rdbms.Column.DefinitionId, Constants.Stereotypes.Rdbms.Column.PropertyId.Name, out var value)? value : a.Name) == indexColumn.Name);
             ElementHelper.CreateIndexColumn(indexPersistable, @class, attribute?.Name ?? indexColumn.Name, attribute, indexColumn.IsIncluded, indexColumn.Descending);
 

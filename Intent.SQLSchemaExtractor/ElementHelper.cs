@@ -141,9 +141,15 @@ namespace Intent.SQLSchemaExtractor
             return element;
         }
 
-		public static ElementPersistable? GetClass(this PackageModelPersistable package, string externalReference)
+		public static ElementPersistable? GetClass(this PackageModelPersistable package, string externalReference, string expectedClassName)
         {
-			return package.Classes.SingleOrDefault(x => x.ExternalReference == externalReference && x.IsClass());
+
+			var result = package.Classes.SingleOrDefault(x => (x.Name == expectedClassName) && x.IsClass());
+			if (result is null)
+            {
+				result = package.Classes.SingleOrDefault(x => (x.ExternalReference == externalReference) && x.IsClass());
+			}
+            return result;
 		}
 
 		public static ElementPersistable GetOrCreateClass(this PackageModelPersistable package, string parentId, string externalReference, string className)
@@ -298,6 +304,10 @@ namespace Intent.SQLSchemaExtractor
                 };
 
 			}
+            else
+            {
+                Console.WriteLine($"warning: For Index on Class `{@class.Name}` can't find attribute for Index column `{name}`.");
+            }
 			var columnIndex = new ElementPersistable() 
             {
 				Id = Guid.NewGuid().ToString(),

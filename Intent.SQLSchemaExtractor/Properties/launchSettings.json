@@ -2,7 +2,7 @@
   "profiles": {
     "Intent.SQLSchemaExtractor": {
       "commandName": "Project",
-      "commandLineArgs": "--serialized-config \"{\\\"ApplicationId\\\":\\\"15b4b855-2982-4d41-9682-06b140ce3405\\\",\\\"DesignerId\\\":\\\"6ab29b31-27af-4f56-a67c-986d82097d63\\\",\\\"PackageId\\\":\\\"916f135e-611e-486a-846e-2ab617767b93\\\",\\\"EntityNameConvention\\\":\\\"SingularEntity\\\",\\\"TableStereotypes\\\":\\\"WhenDifferent\\\",\\\"TypesToExport\\\":[\\\"Table\\\",\\\"Index\\\"],\\\"SchemaFilter\\\":[],\\\"ConnectionString\\\":\\\"Server=.;Initial Catalog=ICS.Workshops.Ordering;Integrated Security=false;MultipleActiveResultSets=True;Encrypt=False;User Id =sa;Password=IntentP@ssword123\\\",\\\"PackageFileName\\\":\\\"C:/Workshop/ICS.Workshops.Invoicing.Solution - Copy/intent/ICS.Workshops.Ordering/Intent.Metadata/Domain/Domain.Import/Domain.Import.pkg.config\\\",\\\"SettingPersistence\\\":\\\"All\\\"}\""
+      "commandLineArgs": "--serialized-config \"{\\\"ApplicationId\\\":\\\"c386987c-1b33-4876-934a-aad4a208a1bc\\\",\\\"DesignerId\\\":\\\"6ab29b31-27af-4f56-a67c-986d82097d63\\\",\\\"PackageId\\\":\\\"72220444-3fe0-46ca-af15-e4b23d119acc\\\",\\\"EntityNameConvention\\\":\\\"SingularEntity\\\",\\\"TableStereotypes\\\":\\\"WhenDifferent\\\",\\\"TypesToExport\\\":[\\\"Index\\\"],\\\"SchemaFilter\\\":[],\\\"ConnectionString\\\":\\\"Server=.;Initial Catalog=ICS;Integrated Security=false;MultipleActiveResultSets=True;Encrypt=False;User Id =sa;Password=IntentP@ssword123\\\",\\\"PackageFileName\\\":\\\"C:/Clients/ICS/PICSDBImport/intent/PICSDBImport/Intent.Metadata/Domain/PICSDBImport.Domain/PICSDBImport.Domain.pkg.config\\\",\\\"SettingPersistence\\\":\\\"All\\\"}\""
     }
   }
 }
