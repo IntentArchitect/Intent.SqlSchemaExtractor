@@ -5,6 +5,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Intent.Modules.Common.Templates;
+using System.Data.SqlTypes;
+using System.CodeDom;
+using static System.Net.Mime.MediaTypeNames;
+using Newtonsoft.Json.Linq;
 
 namespace Intent.SQLSchemaExtractor
 {
@@ -17,8 +21,10 @@ namespace Intent.SQLSchemaExtractor
         private static readonly SpecializationType RepositoryType = new("Repository", "96ffceb2-a70a-4b69-869b-0df436c470c3");
         private static readonly SpecializationType StoredProcedureType = new("Stored Procedure", "575edd35-9438-406d-b0a7-b99d6f29b560");
         private static readonly SpecializationType StoredProcedureParameterType = new("Stored Procedure Parameter", "5823b192-eb03-47c8-90d8-5501c922e9a5");
-        
-        public static void AddOrUpdateStereotype(
+		private static readonly SpecializationType IndexType = new("Index", "436e3afe-b4ef-481c-b803-0d1e7d263561");
+		private static readonly SpecializationType IndexColumn = new("Index Column", "c5ba925d-5c08-4809-a848-585a0cd4ddd3");
+
+		public static void AddOrUpdateStereotype(
             this ElementPersistable element,
             StereotypePersistable requiredStereotype,
             Func<StereotypePropertyPersistable, StereotypePropertyPersistable, bool> additionalEqualityPredicate = null)
@@ -134,8 +140,13 @@ namespace Intent.SQLSchemaExtractor
 
             return element;
         }
-        
-        public static ElementPersistable GetOrCreateClass(this PackageModelPersistable package, string parentId, string externalReference, string className)
+
+		public static ElementPersistable? GetClass(this PackageModelPersistable package, string externalReference)
+        {
+			return package.Classes.SingleOrDefault(x => x.ExternalReference == externalReference && x.IsClass());
+		}
+
+		public static ElementPersistable GetOrCreateClass(this PackageModelPersistable package, string parentId, string externalReference, string className)
         {
             var element = package.Classes.SingleOrDefault(x => x.ExternalReference == externalReference && x.IsClass());
             if (element is null)
@@ -222,7 +233,97 @@ namespace Intent.SQLSchemaExtractor
             return element;
         }
 
-        public static ElementPersistable GetOrCreateStoredProcedure(this ElementPersistable repository, string externalReference, string storeProcedureName)
+
+        private const string DomainMetadataId = "6ab29b31-27af-4f56-a67c-986d82097d63";
+		private const string ColumnMappingSettingsId = "30f4278f-1d74-4e7e-bfdb-39c8e120f24c";
+
+		public static ElementPersistable GetOrCreateIndex(this ElementPersistable @class, string externalReference, string indexName, bool isUnique, string applicationId)
+		{
+			var element = @class.ChildElements.SingleOrDefault(x => x.ExternalReference == externalReference);
+			if (element is null)
+			{
+                var newIndex = element = new ElementPersistable
+				{
+					Id = Guid.NewGuid().ToString(),
+					Name = indexName,
+					SpecializationTypeId = IndexType.Id,
+					SpecializationType = IndexType.Name,
+					Stereotypes = new List<StereotypePersistable>(),
+                    IsMapped = true,
+                    Mapping = new MappingModelPersistable { 
+                        ApplicationId = applicationId,
+						MappingSettingsId = ColumnMappingSettingsId,
+                        MetadataId = DomainMetadataId,
+						AutoSyncTypeReference= false,
+                        Path = new List<MappedPathTargetPersistable> { new MappedPathTargetPersistable() { Id = @class.Id, Name = @class.Name, Type = ElementType.Element, Specialization = @class.SpecializationType } }                        
+					},
+                    ParentFolderId = @class.Id,
+					PackageId = @class.PackageId,
+                    PackageName = @class.PackageName,
+					ExternalReference = externalReference,
+                    ChildElements = new List<ElementPersistable>()
+				};
+                @class.ChildElements.Add(newIndex);
+
+			}
+			if (!element.IsIndex())
+			{
+				throw new Exception($"Element with External Reference {externalReference} is not a {ClassType.Name}");
+			}
+			element.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Index.Settings.DefinitionId, (stereotype) =>
+			{
+				stereotype.AddedByDefault = true;
+				stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+				stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+				stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.UseDefaultName, p => { p.Name = Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.UseDefaultNameName; p.Value = "false"; });
+				stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.Unique, p => { p.Name = Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.UniqueName; p.Value = isUnique.ToString().ToLower(); });
+				stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.Filter, p => { p.Name = Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.FilterName; p.Value = "Default"; });
+				stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.FilterCustomValue, p => { });
+				stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.FillFactror, p => { });
+			});
+
+			return element;
+		}
+		internal static void CreateIndexColumn(ElementPersistable indexPersistable, ElementPersistable @class, string name, ElementPersistable? attribute, bool isIncluded, bool descending)
+		{
+            MappingModelPersistable mapping = null;
+            if (attribute != null)
+            {
+                mapping = new MappingModelPersistable
+                {
+                    MappingSettingsId = ColumnMappingSettingsId,
+                    MetadataId = DomainMetadataId,
+                    AutoSyncTypeReference = false,
+                    Path = new List<MappedPathTargetPersistable> { new MappedPathTargetPersistable() { Id = attribute.Id, Name = attribute.Name, Type = ElementType.Element, Specialization = attribute.SpecializationType } }
+                };
+
+			}
+			var columnIndex = new ElementPersistable() 
+            {
+				Id = Guid.NewGuid().ToString(),
+				Name = name,
+				SpecializationTypeId = IndexColumn.Id,
+				SpecializationType = IndexColumn.Name,
+				IsMapped = mapping != null,
+				Mapping = mapping,
+				ParentFolderId = indexPersistable.Id,
+				PackageId = @class.PackageId,
+				PackageName = @class.PackageName,
+			};
+
+			columnIndex.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Index.IndexColumn.Settings.DefinitionId, (stereotype) => 
+            {
+				stereotype.AddedByDefault = true;
+				stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+				stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+				stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.IndexColumn.Settings.PropertyId.Type, p =>  p.Value = isIncluded ? "Included" : "Key"  );
+				stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.IndexColumn.Settings.PropertyId.SortDirection, p => p.Value = descending ? "Descending" : "Ascending");
+			});
+            indexPersistable.ChildElements.Add(columnIndex);
+		}
+
+
+		public static ElementPersistable GetOrCreateStoredProcedure(this ElementPersistable repository, string externalReference, string storeProcedureName)
         {
             var element = repository.ChildElements.SingleOrDefault(x => x.ExternalReference == externalReference);
             if (element is null)
@@ -282,7 +383,12 @@ namespace Intent.SQLSchemaExtractor
             return FolderType.Id.Equals(element.SpecializationTypeId, StringComparison.OrdinalIgnoreCase);
         }
 
-        public static bool IsClass(this ElementPersistable element)
+		public static bool IsIndex(this ElementPersistable element)
+		{
+			return IndexType.Id.Equals(element.SpecializationTypeId, StringComparison.OrdinalIgnoreCase);
+		}
+
+		public static bool IsClass(this ElementPersistable element)
         {
             return ClassType.Id.Equals(element.SpecializationTypeId, StringComparison.OrdinalIgnoreCase);
         }
@@ -396,5 +502,6 @@ namespace Intent.SQLSchemaExtractor
             normalized = normalized[..1].ToUpper() + normalized[1..];
             return normalized;
         }
-    }
+
+	}
 }

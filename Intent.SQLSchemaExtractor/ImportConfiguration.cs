@@ -11,14 +11,15 @@ namespace Intent.SQLSchemaExtractor
         public EntityNameConvention EntityNameConvention { get; set; } = EntityNameConvention.SingularEntity;
         public TableStereotypes TableStereotypes { get; set; } = TableStereotypes.WhenDifferent;
 
-        public HashSet<ExportTypes> TypesToExport { get; set; } = new HashSet<ExportTypes> { ExportTypes.Table, ExportTypes.View, ExportTypes.StoredProcedure };
+        public HashSet<ExportTypes> TypesToExport { get; set; } = new HashSet<ExportTypes> { ExportTypes.Table, ExportTypes.View, ExportTypes.StoredProcedure, ExportTypes.Index };
 
         public HashSet<string> SchemaFilter { get; set; } = new HashSet<string>();
 
         public string? ConnectionString { get; set; }
         public string? PackageFileName { get; set; }
+		public string? ApplicationId { get; set; }
 
-        public SettingPersistence SettingPersistence { get; set; } = SettingPersistence.None;
+		public SettingPersistence SettingPersistence { get; set; } = SettingPersistence.None;
 
 		public ImportConfiguration()
         {            
@@ -41,7 +42,13 @@ namespace Intent.SQLSchemaExtractor
             return TypesToExport.Contains(ExportTypes.View);
         }
 
-        internal bool ExportStoredProcedures()
+		internal bool ExportIndexes()
+		{
+			return TypesToExport.Contains(ExportTypes.Index);
+		}
+		
+
+		internal bool ExportStoredProcedures()
         {
             return TypesToExport.Contains(ExportTypes.StoredProcedure);
         }
@@ -55,7 +62,8 @@ namespace Intent.SQLSchemaExtractor
     {
         Table,
         View,
-        StoredProcedure
+        StoredProcedure,
+        Index
     }
 
     public enum TableStereotypes

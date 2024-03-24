@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Linq;
 using System.Security.Principal;
+using System.Xml.Serialization;
+using Intent.IArchitect.Agent.Persistence;
 using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
 using Intent.Modules.Common.Templates;
 using Microsoft.SqlServer.Management.Smo;
+using Microsoft.SqlServer.Management.XEvent;
 using Index = Microsoft.SqlServer.Management.Smo.Index;
 
 namespace Intent.SQLSchemaExtractor;
@@ -264,42 +267,32 @@ internal static class RdbmsDecorator
         }
     }
 
-    public static void ApplyIndex(Index index, ElementPersistable @class)
+    public static void ApplyIndex(ImportConfiguration config ,Index index, ElementPersistable @class)
     {
-        var indexKeyName = $"IX_{string.Join("_", index.IndexedColumns.Cast<IndexedColumn>().Select(s => s.Name))}";
+		if (index.Parent is Table table)
+		{
+			if (!config.ExportSchema(table.Schema))
+			{
+				return;
+			}
+		}
 
-        foreach (var attribute in @class.ChildElements.Where(p => p.SpecializationType == "Attribute"))
+		if (IsForeignKeyIndex(config, index))
+		{
+			Console.WriteLine($"Skipping default foreign key index : { index.Name }");
+			return;
+		}
+
+        var indexPersistable = ElementHelper.GetOrCreateIndex(@class, "IX_" + index.ID.ToString(), index.Name, index.IsUnique, config.ApplicationId);
+
+        foreach (IndexedColumn indexColumn in index.IndexedColumns) 
         {
-            var columnSqlName = attribute.TryGetStereotypeProperty(
-                Constants.Stereotypes.Rdbms.Column.DefinitionId,
-                Constants.Stereotypes.Rdbms.Column.PropertyId.Name,
-                out var value)
-                ? value
-                : attribute.Name;
+            var attribute = @class.ChildElements.Where(p => p.SpecializationType == "Attribute").FirstOrDefault(a => a.Name == indexColumn.Name || 
+                (a.TryGetStereotypeProperty(Constants.Stereotypes.Rdbms.Column.DefinitionId, Constants.Stereotypes.Rdbms.Column.PropertyId.Name, out var value)? value : a.Name) == indexColumn.Name);
+            ElementHelper.CreateIndexColumn(indexPersistable, @class, attribute?.Name ?? indexColumn.Name, attribute, indexColumn.IsIncluded, indexColumn.Descending);
 
-            var indexCount = 0;
-            foreach (IndexedColumn indexedColumn in index.IndexedColumns)
-            {
-                indexCount++;
-                if (indexedColumn.Name == columnSqlName || indexedColumn.Name == attribute.Name)
-                {
-                    var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Index.DefinitionId, ster =>
-                    {
-                        ster.Name = Constants.Stereotypes.Rdbms.Index.Name;
-                        ster.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
-                        ster.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-                    });
-                    stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.PropertyId.UniqueKey,
-                        prop => prop.Name = Constants.Stereotypes.Rdbms.Index.PropertyId.UniqueKeyName).Value = indexKeyName;
-                    stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.PropertyId.Order,
-                        prop => prop.Name = Constants.Stereotypes.Rdbms.Index.PropertyId.OrderName).Value = indexCount.ToString();
-                    stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.PropertyId.IsUnique,
-                        prop => prop.Name = Constants.Stereotypes.Rdbms.Index.PropertyId.IsUniqueName).Value = index.IsUnique.ToString().ToLower();
-                }
-            }
-        }
+		}
     }
-
 
 	public static void ApplyStoredProcedureSettings(StoredProcedure sqlStoredProc, ElementPersistable elementStoredProc)
     {
@@ -333,4 +326,38 @@ internal static class RdbmsDecorator
             stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.StoredProcedureParameter.PropertyId.IsOutputParam, prop => prop.Name = Constants.Stereotypes.Rdbms.StoredProcedureParameter.PropertyId.IsOutputParamName);
         }
     }
+	private static bool IsForeignKeyIndex(ImportConfiguration config, Index index)
+	{
+		if (index.IndexedColumns.Count == 1)
+		{
+			if (index.Parent is Table table)
+			{
+				foreach (ForeignKey foreignKey in table.ForeignKeys)
+				{
+					var sourceColumns = foreignKey.Columns.Cast<ForeignKeyColumn>().Select(x => GetColumn(table, x.Name)).ToList();
+					if (sourceColumns.Count == 1)
+					{
+						if (sourceColumns[0].Name == index.IndexedColumns[0].Name)
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private static Column GetColumn(Table table, string columnName)
+	{
+		foreach (Column column in table.Columns)
+		{
+			if (column.Name == columnName)
+			{
+				return column;
+			}
+		}
+
+		return null;
+	}
 }

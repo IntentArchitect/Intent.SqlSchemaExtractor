@@ -41,7 +41,52 @@ public static class Constants
     {
         public static class Rdbms
         {
-            public static class Table
+			public static class Index
+			{
+				public static class Settings
+				{
+
+					public const string DefinitionId = "18a8e9e7-b8db-41ec-976b-2b6ba0cc4e4d";
+					public const string Name = "Settings";
+
+					public static class PropertyId
+					{
+						public const string UseDefaultName = "0d83cdc2-7dc3-4693-9767-4c742ebb3188";
+						public const string UseDefaultNameName = "Use Default Name";
+						public const string Unique = "7cb9624c-677e-4e71-b674-7a109c674d49";
+						public const string UniqueName = "Unique";
+						public const string Filter = "b591c208-51fa-4507-bd7c-337a738772e0";
+						public const string FilterName = "Filter";
+						public const string FilterCustomValue = "aef6b276-e7fd-4e16-8b30-f7d74a0b402b";
+						public const string FilterCustomValueName = "Unique";
+						public const string FillFactror = "4e876d68-8bde-4b31-bd25-81e2bd935e76";
+						public const string FillFactrorName = "Unique";
+					}
+
+				}
+
+				public static class IndexColumn
+				{
+					public static class Settings
+					{
+                        
+				        public const string DefinitionId = "1c39a537-7016-4774-a874-23248040c07e";
+						public const string Name = "Settings";
+
+						public static class PropertyId
+						{
+							public const string Type = "9c37afb1-b837-49a6-b7fb-3c25c8aab1d5";
+							public const string TypeName = "Type";
+							public const string SortDirection = "f80ed9e2-b90b-4fff-a551-98f0461b3f86";
+							public const string SortDirectionName = "Sort Direction";
+						}
+
+					}
+				}
+			}
+
+
+			public static class Table
             {
                 public const string DefinitionId = "dd205b32-b48b-4c77-98f5-faefb2c047ce";
                 public const string Name = "Table";
@@ -166,6 +211,7 @@ public static class Constants
                 }
             }
 
+            /*
             public static class Index
             {
                 public const string DefinitionId = "bbe43b90-c20d-4fdb-8a55-9037a5f6bd0b";
@@ -180,7 +226,7 @@ public static class Constants
                     public const string IsUnique = "90002464-b824-40e2-9f73-32f306868897";
                     public const string IsUniqueName = "IsUnique";
                 }
-            }
+            }*/
 
             public static class ForeignKey
             {

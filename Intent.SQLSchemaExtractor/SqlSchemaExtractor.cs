@@ -36,8 +36,12 @@ namespace Intent.SQLSchemaExtractor
                 ProcessTables(config, package);
                 ProcessForeignKeys(config, package);
             }
+            if (_config.ExportIndexes())
+            {
+				ProcessIndexes(config, package);
+			}
 
-            if (_config.ExportViews())
+			if (_config.ExportViews())
             {
                 ProcessViews(config, package);
             }
@@ -51,8 +55,7 @@ namespace Intent.SQLSchemaExtractor
 
             return package;
         }
-
-        private static void ApplyStereotypes(SchemaExtractorConfiguration config, PackageModelPersistable package)
+		private static void ApplyStereotypes(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
             if (package.Stereotypes.Any(p => p.DefinitionId == Constants.Stereotypes.Rdbms.RelationalDatabase.DefinitionId))
             {
@@ -67,6 +70,46 @@ namespace Intent.SQLSchemaExtractor
                 DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName,
                 DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId
             });
+        }
+
+
+        private void ProcessIndexes(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Indexes");
+            Console.WriteLine("======");
+            Console.WriteLine();
+
+            var filteredTables = _db.Tables.OfType<Table>().Where(table => table.Name is not "sysdiagrams").ToArray();
+            var tableCount = filteredTables.Length;
+            var tableNumber = 0;
+            foreach (Table table in filteredTables)
+            {
+                if (!_config.ExportSchema(table.Schema))
+                {
+                    continue;
+                }
+
+                var folder = package.GetOrCreateFolder(table.Schema);
+                AddSchemaStereotype(folder, table.Schema);
+                var @class = package.GetClass(table.ID.ToString());
+
+                if (@class != null)
+                {
+                    foreach (Index tableIndex in table.Indexes)
+                    {
+                        if (tableIndex.IsClustered)
+                        {
+                            continue;
+                        }
+
+                        foreach (var handler in config.OnIndexHandlers)
+                        {
+                            handler(_config, tableIndex, @class);
+                        }
+                    }
+                }
+			}
         }
 
         private void ProcessTables(SchemaExtractorConfiguration config, PackageModelPersistable package)
@@ -86,11 +129,11 @@ namespace Intent.SQLSchemaExtractor
                     continue;
                 }
 
-                Console.WriteLine($"{table.Name} ({++tableNumber}/{tableCount})");
-
                 var folder = package.GetOrCreateFolder(table.Schema);
                 AddSchemaStereotype(folder, table.Schema);
                 var @class = package.GetOrCreateClass(folder.Id, table.ID.ToString(), GetEntityName(table.Name));
+
+                Console.WriteLine($"{table.Name} ({++tableNumber}/{tableCount})");
 
                 foreach (var handler in config.OnTableHandlers)
                 {
@@ -107,19 +150,6 @@ namespace Intent.SQLSchemaExtractor
                     foreach (var handler in config.OnTableColumnHandlers)
                     {
                         handler(col, attribute);
-                    }
-                }
-
-                foreach (Index tableIndex in table.Indexes)
-                {
-                    if (tableIndex.IsClustered)
-                    {
-                        continue;
-                    }
-
-                    foreach (var handler in config.OnIndexHandlers)
-                    {
-                        handler(tableIndex, @class);
                     }
                 }
             }
@@ -151,7 +181,7 @@ namespace Intent.SQLSchemaExtractor
             });
         }
 
-        private void ProcessForeignKeys(SchemaExtractorConfiguration config, PackageModelPersistable package)
+		private void ProcessForeignKeys(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
             Console.WriteLine();
             Console.WriteLine("Foreign Keys");
@@ -293,10 +323,6 @@ namespace Intent.SQLSchemaExtractor
                             .GetOrCreateProperty(Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.Association)
                             .Value = association.TargetEnd.Id;
 					}
-					if (attribute is not null && HasDefaultForeignKeyIndex(attribute, out var index))
-					{
-						attribute.Stereotypes.Remove(index);
-					}
 				}
 			}
         }
@@ -315,14 +341,6 @@ namespace Intent.SQLSchemaExtractor
 				a.TargetEnd.TypeReference.IsNullable == association.SourceEnd.TypeReference.IsNullable &&
 				a.TargetEnd.TypeReference.IsCollection == association.SourceEnd.TypeReference.IsCollection
 				) != null;
-		}
-
-		private bool HasDefaultForeignKeyIndex(ElementPersistable attribute, out StereotypePersistable? foundIndex)
-        {
-			foundIndex = attribute.Stereotypes.FirstOrDefault(s =>
-                s.DefinitionId == Constants.Stereotypes.Rdbms.Index.DefinitionId &&
-                s.Properties.FirstOrDefault(p => p.Name == "UniqueKey")?.Value == $"IX_{attribute.Name}");
-            return foundIndex != null;
 		}
 
 		private void ProcessViews(SchemaExtractorConfiguration config, PackageModelPersistable package)
@@ -626,7 +644,7 @@ EXEC sp_describe_first_result_set
             new List<Action<ImportConfiguration, Table, ElementPersistable>>();
 
         public IEnumerable<Action<Column, ElementPersistable>> OnTableColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
-        public IEnumerable<Action<Index, ElementPersistable>> OnIndexHandlers { get; set; } = new List<Action<Index, ElementPersistable>>();
+        public IEnumerable<Action<ImportConfiguration, Index, ElementPersistable>> OnIndexHandlers { get; set; } = new List<Action<ImportConfiguration, Index, ElementPersistable>>();
         public IEnumerable<Action<View, ElementPersistable>> OnViewHandlers { get; set; } = new List<Action<View, ElementPersistable>>();
         public IEnumerable<Action<Column, ElementPersistable>> OnViewColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
         public IEnumerable<Action<StoredProcedure, ElementPersistable>> OnStoredProcedureHandlers { get; set; } = new List<Action<StoredProcedure, ElementPersistable>>();
