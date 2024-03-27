@@ -17,17 +17,29 @@ namespace Intent.SQLSchemaExtractor
     {
         private readonly Database _db;
         private readonly ImportConfiguration _config;
+        private ModelSchemaHelper _modelSchemaHelper;
+        private List<string> _tablesToIgnore = new List<string> { "sysdiagrams", "__EFMigrationsHistory" };
+		private List<string> _viewsToIgnore = new List<string> { "INFORMATION_SCHEMA" };
+
+		public string SchemaVersion { get; } = "2.0";
 
         public SqlSchemaExtractor(ImportConfiguration config, Database db)
         {
             _db = db;
             _config = config;
-        }
+
+		}
 
         public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtractorConfiguration config)
         {
             var (fullPackagePath, packageName) = GetPackageLocationAndName(packageNameOrPath);
-            var package = ElementHelper.GetOrCreateDomainPackage(fullPackagePath, packageName);
+            var package = ModelSchemaHelper.GetOrCreateDomainPackage(fullPackagePath, packageName);
+			_modelSchemaHelper = new ModelSchemaHelper(_config, package, _db);
+			var savedSchemaVersion = package.Metadata.FirstOrDefault(m => m.Key == "sql-import:schemaVersion")?.Value;
+            if (savedSchemaVersion != SchemaVersion)
+            {
+                MigrateSchema(package, savedSchemaVersion);
+            }
             package.IsExternalOld = false;
 
             ApplyStereotypes(config, package);
@@ -52,9 +64,20 @@ namespace Intent.SQLSchemaExtractor
             }
 
             package.References ??= new List<PackageReferenceModel>();
+			package.AddMetadata("sql-import:schemaVersion", SchemaVersion);
 
-            return package;
+			return package;
         }
+
+		private void MigrateSchema(PackageModelPersistable package, string? oldFileVersion)
+		{
+		}
+
+        private Table[] GetFilteredTables()
+        {
+				return _db.Tables.OfType<Table>().Where(table => !_tablesToIgnore.Contains( table.Name) && _config.ExportSchema(table.Schema)).ToArray();
+		}
+
 		private static void ApplyStereotypes(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
             if (package.Stereotypes.Any(p => p.DefinitionId == Constants.Stereotypes.Rdbms.RelationalDatabase.DefinitionId))
@@ -80,23 +103,11 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine("======");
             Console.WriteLine();
 
-            var filteredTables = _db.Tables.OfType<Table>().Where(table => table.Name is not "sysdiagrams").ToArray();
+            var filteredTables = GetFilteredTables();
             var tableCount = filteredTables.Length;
-            var tableNumber = 0;
             foreach (Table table in filteredTables)
             {
-                if (!_config.ExportSchema(table.Schema))
-                {
-                    continue;
-                }
-
-                var folder = package.GetOrCreateFolder(table.Schema);
-                AddSchemaStereotype(folder, table.Schema);
-                var @class = package.GetClass(table.ID.ToString(), GetEntityName(table.Name));
-				if (table.Name == "Account" || table.Name == "BatchContribution")
-				{
-
-				}
+                var @class = _modelSchemaHelper.GetClass(table);
 
 				if (@class != null)
                 {
@@ -109,7 +120,7 @@ namespace Intent.SQLSchemaExtractor
 
                         foreach (var handler in config.OnIndexHandlers)
                         {
-                            handler(_config, tableIndex, @class);
+                            handler(_config, tableIndex, @class, _modelSchemaHelper);
                         }
                     }
                 }
@@ -123,19 +134,13 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine("======");
             Console.WriteLine();
 
-            var filteredTables = _db.Tables.OfType<Table>().Where(table => table.Name is not "sysdiagrams").ToArray();
-            var tableCount = filteredTables.Length;
+			var filteredTables = GetFilteredTables();
+			var tableCount = filteredTables.Length;
             var tableNumber = 0;
-            foreach (Table table in filteredTables)
-            {
-                if (!_config.ExportSchema(table.Schema))
-                {
-                    continue;
-                }
 
-                var folder = package.GetOrCreateFolder(table.Schema);
-                AddSchemaStereotype(folder, table.Schema);
-                var @class = package.GetOrCreateClass(folder.Id, table.ID.ToString(), GetEntityName(table.Name));
+			foreach (Table table in filteredTables)
+            {
+                var @class = _modelSchemaHelper.GetOrCreateClass(table);
 
                 Console.WriteLine($"{table.Name} ({++tableNumber}/{tableCount})");
 
@@ -146,7 +151,7 @@ namespace Intent.SQLSchemaExtractor
 
                 foreach (Column col in table.Columns)
                 {
-                    var attribute = @class.GetOrCreateAttribute(table.Name, col.ID.ToString(), col.Name, col.Nullable);
+                    var attribute = _modelSchemaHelper.GetOrCreateAttribute(col, @class);
 
                     var typeId = GetTypeId(col.DataType);
                     attribute.TypeReference.TypeId = typeId;
@@ -159,32 +164,6 @@ namespace Intent.SQLSchemaExtractor
             }
         }
 
-        private string GetEntityName(string name)
-        {
-            return _config.EntityNameConvention switch
-            {
-                EntityNameConvention.SingularEntity => name.Singularize(false),
-                EntityNameConvention.MatchTable => name,
-                _ => name
-            };
-        }
-
-        private void AddSchemaStereotype(ElementPersistable folder, string schemaName)
-        {
-            folder.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Schema.DefinitionId, ster =>
-            {
-                ster.Name = Constants.Stereotypes.Rdbms.Schema.Name;
-                ster.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
-                ster.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-                ster.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Schema.PropertyId.Name,
-                    prop =>
-                    {
-                        prop.Name = Constants.Stereotypes.Rdbms.Schema.PropertyId.NameName;
-                        prop.Value = schemaName;
-                    });
-            });
-        }
-
 		private void ProcessForeignKeys(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
             Console.WriteLine();
@@ -192,159 +171,18 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine("============");
             Console.WriteLine();
 
-            var filteredTables = _db.Tables.OfType<Table>().Where(table => table.Name != "sysdiagrams").ToArray();
-            foreach (Table table in filteredTables)
+			var filteredTables = GetFilteredTables();
+			foreach (Table table in filteredTables)
             {
-                if (!_config.ExportSchema(table.Schema))
-                {
-                    continue;
-                }
-
-                var @class = package.Classes.SingleOrDefault(x => x.ExternalReference == table.ID.ToString() && x.IsClass());
-                var sourcePKs = GetPrimaryKeys(table);
                 foreach (ForeignKey foreignKey in table.ForeignKeys)
                 {
-                    var sourceColumns = foreignKey.Columns.Cast<ForeignKeyColumn>().Select(x => GetColumn(table, x.Name)).ToList();
-                    var targetTable = GetTable(foreignKey.Columns[0].Parent.ReferencedTableSchema, foreignKey.Columns[0].Parent.ReferencedTable);
-                    var targetColumn = foreignKey.Columns[0].Name;
-
-                    var sourceClassId = package.Classes.Single(x => x.ExternalReference == table.ID.ToString() && x.IsClass()).Id;
-                    var targetClassId = package.Classes.Single(x => x.ExternalReference == targetTable.ID.ToString() && x.IsClass()).Id;
-                    string targetName = null;
-
-                    var singularTableName = targetTable.Name.Singularize(false);
-                    if (sourceColumns[0].Name.IndexOf(singularTableName, StringComparison.Ordinal) == 0)
-                    {
-                        targetName = singularTableName;
-                    }
-                    else
-                    {
-                        switch (sourceColumns[0].Name.IndexOf(targetTable.Name, StringComparison.Ordinal))
-                        {
-                            case -1:
-
-                                //Ordinal Case
-                                targetName = sourceColumns[0].Name.Replace("ID", "", StringComparison.Ordinal) + targetTable.Name;
-                                break;
-                            case 0:
-                                targetName = singularTableName;
-                                break;
-                            default:
-                                targetName = sourceColumns[0].Name
-                                    .Substring(0, sourceColumns[0].Name.IndexOf(targetTable.Name, StringComparison.Ordinal) + targetTable.Name.Length);
-                                break;
-                        }
-                    }
-
-                    bool skip = false;
-                    var association = package.Associations.SingleOrDefault(x => x.ExternalReference == foreignKey.ID.ToString());
-                    if (association is null)
-                    {
-						var associationId = Guid.NewGuid().ToString();
-                        association = new AssociationPersistable()
-                        {
-                            Id = associationId,
-                            ExternalReference = foreignKey.ID.ToString(),
-                            AssociationType = "Association",
-                            TargetEnd = new AssociationEndPersistable()
-                            {
-                                //Keep this the same as association Id
-                                Id = associationId,
-                                Name = targetName,
-                                TypeReference = new TypeReferencePersistable()
-                                {
-                                    Id = Guid.NewGuid().ToString(),
-                                    TypeId = targetClassId,
-                                    IsNavigable = true,
-                                    IsNullable = sourceColumns.Any(x => x.Nullable),
-                                    IsCollection = false,
-                                },
-                                Stereotypes = new List<StereotypePersistable>(),
-                            },
-                            SourceEnd = new AssociationEndPersistable
-                            {
-                                Id = Guid.NewGuid().ToString(),
-                                TypeReference = new TypeReferencePersistable()
-                                {
-                                    Id = Guid.NewGuid().ToString(),
-                                    TypeId = sourceClassId,
-                                    IsNavigable = false,
-                                    IsNullable = false,
-                                    IsCollection = !(sourcePKs.Length == sourceColumns.Count && sourceColumns.All(x => sourcePKs.Any(pk => pk == x.Name))),
-                                },
-                                Stereotypes = new List<StereotypePersistable>()
-                            }
-                        };
-                        if (!SameAssociationExistsWithReverseOwnership(package.Associations, association))
-                        {
-                            package.Associations.Add(association);
-                        }
-                        else
-						{
-                            skip = true;
-							Console.Write($"Skipping - ");
-						}
-
-					}
-
-					Console.WriteLine($"{table.Name}: {sourceColumns[0].Name} " +
-                                      $"[{(association.SourceEnd.TypeReference.IsNullable ? "0" : "1")}..{(association.SourceEnd.TypeReference.IsCollection ? "*" : "1")}] " +
-                                      "--> " +
-                                      $"[{(association.TargetEnd.TypeReference.IsNullable ? "0" : "1")}..{(association.TargetEnd.TypeReference.IsCollection ? "*" : "1")}] " +
-                                      $"{targetTable.Name}: {targetColumn}");
-
-                    var attribute = @class.ChildElements
-                        .FirstOrDefault(p => p.SpecializationType == "Attribute" &&
-                                             p.ExternalReference == sourceColumns[0].ID.ToString());
-                    if (attribute is not null && !skip)
-                    {
-                        if (attribute.Metadata.All(p => p.Key != "fk-original-name"))
-                        {
-                            attribute.Metadata.Add(new GenericMetadataPersistable
-                            {
-                                Key = "fk-original-name",
-                                Value = attribute.Name
-                            });
-                        }
-
-                        if (attribute.Metadata.All(p => p.Key != "association"))
-                        {
-                            attribute.Metadata.Add(new GenericMetadataPersistable
-                            {
-                                Key = "association",
-                                Value = association.Id
-                            });
-                        }
-
-                        attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.ForeignKey.DefinitionId, ster =>
-                            {
-                                ster.Name = Constants.Stereotypes.Rdbms.ForeignKey.Name;
-                                ster.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
-                                ster.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-                                ster.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.Association,
-                                    prop => prop.Name = Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.AssociationName);
-                            })
-                            .GetOrCreateProperty(Constants.Stereotypes.Rdbms.ForeignKey.PropertyId.Association)
-                            .Value = association.TargetEnd.Id;
-					}
+                    var association = _modelSchemaHelper.GetOrCreateAssociation(foreignKey);
 				}
 			}
-        }
-
-        /// <summary>
-        /// This is to catch associations which have been manually fixed and not overwrite them
-        /// Associations with reverse ownership might have been recreated and the external ref has been lost
-        /// </summary>
-		private bool SameAssociationExistsWithReverseOwnership(IList<AssociationPersistable> associations, AssociationPersistable association)
+		}
+		private View[] GetFilteredViews()
 		{
-            return associations.FirstOrDefault(a => 
-                a.SourceEnd.TypeReference.TypeId == association.TargetEnd.TypeReference.TypeId &&
-				a.TargetEnd.TypeReference.TypeId == association.SourceEnd.TypeReference.TypeId &&
-				a.SourceEnd.TypeReference.IsNullable == association.TargetEnd.TypeReference.IsNullable &&
-				a.SourceEnd.TypeReference.IsCollection == association.TargetEnd.TypeReference.IsCollection &&
-				a.TargetEnd.TypeReference.IsNullable == association.SourceEnd.TypeReference.IsNullable &&
-				a.TargetEnd.TypeReference.IsCollection == association.SourceEnd.TypeReference.IsCollection
-				) != null;
+            return _db.Views.OfType<View>().Where(view => view.Schema is not "sys" && !_viewsToIgnore.Contains(view.Name) && _config.ExportSchema(view.Schema)).ToArray();
 		}
 
 		private void ProcessViews(SchemaExtractorConfiguration config, PackageModelPersistable package)
@@ -354,19 +192,12 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine("=====");
             Console.WriteLine();
 
-            var filteredViews = _db.Views.OfType<View>().Where(view => view.Schema is not "sys" and not "INFORMATION_SCHEMA").ToArray();
+            var filteredViews = GetFilteredViews();
             var viewsCount = filteredViews.Length;
             var viewNumber = 0;
             foreach (View view in filteredViews)
             {
-                if (!_config.ExportSchema(view.Schema))
-                {
-                    continue;
-                }
-
-                var folder = package.GetOrCreateFolder(view.Schema);
-                AddSchemaStereotype(folder, view.Schema);
-                var @class = package.GetOrCreateClass(folder.Id, view.ID.ToString(), view.Name);
+                var @class = _modelSchemaHelper.GetOrCreateClass(view);
 
                 Console.WriteLine($"{view.Name} ({++viewNumber}/{viewsCount})");
 
@@ -377,7 +208,7 @@ namespace Intent.SQLSchemaExtractor
 
                 foreach (Column col in view.Columns)
                 {
-                    var attribute = @class.GetOrCreateAttribute(view.Name, col.ID.ToString(), col.Name, col.Nullable);
+                    var attribute = _modelSchemaHelper.GetOrCreateAttribute(col, @class);
 
                     var typeId = GetTypeId(col.DataType);
                     attribute.TypeReference.TypeId = typeId;
@@ -388,16 +219,22 @@ namespace Intent.SQLSchemaExtractor
                     }
                 }
             }
-        }
+		}
 
-        private void ProcessStoredProcedures(SchemaExtractorConfiguration config, PackageModelPersistable package)
+		private StoredProcedure[] GetFilteredStoredProcedures()
+		{
+			return _db.StoredProcedures.OfType<StoredProcedure>().Where(storedProc => storedProc.Schema is not "sys" && _config.ExportSchema(storedProc.Schema)).ToArray();
+		}
+
+
+		private void ProcessStoredProcedures(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
             Console.WriteLine();
             Console.WriteLine("Stored Procedures");
             Console.WriteLine("=================");
             Console.WriteLine();
 
-            var filteredStoredProcs = _db.StoredProcedures.OfType<StoredProcedure>().Where(storedProc => storedProc.Schema is not "sys").ToArray();
+            var filteredStoredProcs = GetFilteredStoredProcedures();
             var storedProcsCount = filteredStoredProcs.Length;
             var storedProcsNumber = 0;
             foreach (StoredProcedure storedProc in filteredStoredProcs)
@@ -409,14 +246,14 @@ namespace Intent.SQLSchemaExtractor
 
                 Console.WriteLine($"{storedProc.Name} ({++storedProcsNumber}/{storedProcsCount})");
 
-                var folder = package.GetOrCreateFolder(storedProc.Schema);
-                AddSchemaStereotype(folder, storedProc.Schema);
-                var repository = package.GetOrCreateRepository(folder.Id, storedProc.Schema, $"StoredProcedureRepository");
-                var repoStoredProc = repository.GetOrCreateStoredProcedure(storedProc.ID.ToString(), storedProc.Name);
+                var modelStoredProcedure = _modelSchemaHelper.GetOrCreateStoredProcedure(storedProc);
 
                 var tableId = GetTableIdInResultSet(storedProc);
                 if (tableId is not null)
                 {
+                    Console.WriteLine($"For Stored Procedure {modelStoredProcedure.ExternalReference} table type return types not currently supported");
+                    /*
+                    //Write out not supported warning
                     var @class = package.GetOrCreateClass(null, tableId, null);
                     repoStoredProc.TypeReference = new TypeReferencePersistable
                     {
@@ -426,19 +263,19 @@ namespace Intent.SQLSchemaExtractor
                         Stereotypes = new List<StereotypePersistable>(),
                         GenericTypeParameters = new List<TypeReferencePersistable>(),
                         TypeId = @class.Id
-                    };
+                    };*/
                 }
 
                 foreach (StoredProcedureParameter procParameter in storedProc.Parameters)
                 {
-                    var param = repoStoredProc.GetOrCreateStoredProcedureParameter(procParameter.ID.ToString(), procParameter.Name);
+                    var param = _modelSchemaHelper.GetOrCreateStoredProcedureParameter(procParameter, modelStoredProcedure);
                     var typeId = GetTypeId(procParameter.DataType);
                     param.TypeReference.TypeId = typeId;
                 }
 
                 foreach (var handler in config.OnStoredProcedureHandlers)
                 {
-                    handler(storedProc, repoStoredProc);
+                    handler(storedProc, modelStoredProcedure);
                 }
             }
         }
@@ -450,7 +287,7 @@ namespace Intent.SQLSchemaExtractor
             {
                 describeResults = _db.ExecuteWithResults($@"
 EXEC sp_describe_first_result_set 
-    @tsql = N'EXEC {storedProc.Name}',
+    @tsql = N'EXEC [{storedProc.Schema}].[{storedProc.Name}]',
     @params = N'',
     @browse_information_mode = 1");
             }
@@ -536,44 +373,6 @@ EXEC sp_describe_first_result_set
             return (fullPackagePath, packageName);
         }
 
-        private static string[] GetPrimaryKeys(Table table)
-        {
-            foreach (Index tableIndex in table.Indexes)
-            {
-                if (tableIndex.IndexKeyType == IndexKeyType.DriPrimaryKey)
-                {
-                    return tableIndex.IndexedColumns.Cast<IndexedColumn>().Select(x => x.Name).ToArray();
-                }
-            }
-
-            return Array.Empty<string>();
-        }
-
-        private static Column GetColumn(Table table, string columnName)
-        {
-            foreach (Column column in table.Columns)
-            {
-                if (column.Name == columnName)
-                {
-                    return column;
-                }
-            }
-
-            return null;
-        }
-
-        private Table GetTable(string schema, string tableName)
-        {
-            foreach (Table table in _db.Tables)
-            {
-                if (table.Schema == schema && table.Name == tableName)
-                {
-                    return table;
-                }
-            }
-
-            return null;
-        }
 
         private static string GetTypeId(DataType dataType)
         {
@@ -585,7 +384,6 @@ EXEC sp_describe_first_result_set
                 case SqlDataType.NVarChar:
                 case SqlDataType.NVarCharMax:
                 case SqlDataType.SysName:
-                case SqlDataType.HierarchyId:
                 case SqlDataType.Xml:
                 case SqlDataType.Text:
                 case SqlDataType.NText:
@@ -633,10 +431,11 @@ EXEC sp_describe_first_result_set
                 case SqlDataType.UserDefinedTableType:
                 case SqlDataType.Geometry:
                 case SqlDataType.Geography:
-                    Console.WriteLine($"WARNING: Unsupported column type: {dataType.SqlDataType.ToString()}");
-                    return null;
-                default:
-                    Console.WriteLine($"WARNING: Unknown column type: {dataType.SqlDataType.ToString()}");
+				case SqlDataType.HierarchyId:
+					Logging.LogWarning($"Unsupported column type: {dataType.SqlDataType.ToString()}");
+					return null;
+				default:
+					Logging.LogWarning($"Unknown column type: {dataType.SqlDataType.ToString()}");
                     return null;
             }
         }
@@ -648,7 +447,7 @@ EXEC sp_describe_first_result_set
             new List<Action<ImportConfiguration, Table, ElementPersistable>>();
 
         public IEnumerable<Action<Column, ElementPersistable>> OnTableColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
-        public IEnumerable<Action<ImportConfiguration, Index, ElementPersistable>> OnIndexHandlers { get; set; } = new List<Action<ImportConfiguration, Index, ElementPersistable>>();
+        public IEnumerable<Action<ImportConfiguration, Index, ElementPersistable, ModelSchemaHelper>> OnIndexHandlers { get; set; } = new List<Action<ImportConfiguration, Index, ElementPersistable, ModelSchemaHelper>>();
         public IEnumerable<Action<View, ElementPersistable>> OnViewHandlers { get; set; } = new List<Action<View, ElementPersistable>>();
         public IEnumerable<Action<Column, ElementPersistable>> OnViewColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
         public IEnumerable<Action<StoredProcedure, ElementPersistable>> OnStoredProcedureHandlers { get; set; } = new List<Action<StoredProcedure, ElementPersistable>>();

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Security.Principal;
 using System.Xml.Serialization;
@@ -267,7 +269,7 @@ internal static class RdbmsDecorator
         }
     }
 
-    public static void ApplyIndex(ImportConfiguration config ,Index index, ElementPersistable @class)
+    public static void ApplyIndex(ImportConfiguration config ,Index index, ElementPersistable @class, ModelSchemaHelper modelSchemaHelper)
     {
 		if (index.Parent is Table table)
 		{
@@ -283,13 +285,36 @@ internal static class RdbmsDecorator
 			return;
 		}
 
-        var indexPersistable = ElementHelper.GetOrCreateIndex(@class, "IX_" + index.ID.ToString(), index.Name, index.IsUnique, config.ApplicationId);
+        var indexPersistable = modelSchemaHelper.GetOrCreateIndex(index, @class);
+
+        var indexValues = new Dictionary<string, string> 
+        {
+				{Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.Unique, index.IsUnique.ToString().ToLower() },
+		};
+        if (index.HasFilter)
+        {
+            indexValues.Add(Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.Filter, "Custom");
+			indexValues.Add(Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.FilterCustomValue, index.FilterDefinition);
+
+		}
+		modelSchemaHelper.UpdateStereoType(
+            indexPersistable, 
+            Constants.Stereotypes.Rdbms.Index.Settings.DefinitionId,
+            indexValues);
+
+		indexPersistable.ChildElements.Clear();
 
         foreach (IndexedColumn indexColumn in index.IndexedColumns) 
         {
-            var attribute = @class.ChildElements.Where(p => p.SpecializationType == "Attribute").FirstOrDefault(a => string.Equals(a.Name, indexColumn.Name, StringComparison.OrdinalIgnoreCase)  || 
+            var attribute = @class.ChildElements.Where(p => p.IsAttribute()).FirstOrDefault(a => string.Equals(a.Name, indexColumn.Name, StringComparison.OrdinalIgnoreCase)  || 
                 (a.TryGetStereotypeProperty(Constants.Stereotypes.Rdbms.Column.DefinitionId, Constants.Stereotypes.Rdbms.Column.PropertyId.Name, out var value)? value : a.Name) == indexColumn.Name);
-            ElementHelper.CreateIndexColumn(indexPersistable, @class, attribute?.Name ?? indexColumn.Name, attribute, indexColumn.IsIncluded, indexColumn.Descending);
+
+            if (attribute is null)
+            {
+				Logging.LogWarning($"For Index on Class `{@class.Name}` can't find attribute for Index column `{indexColumn.Name}`.");
+		    }
+
+			modelSchemaHelper.CreateIndexColumn(indexColumn, indexPersistable, attribute);
 
 		}
     }

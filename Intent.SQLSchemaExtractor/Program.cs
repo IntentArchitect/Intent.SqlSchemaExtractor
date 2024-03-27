@@ -120,7 +120,7 @@ namespace Intent.SQLSchemaExtractor
                     }
                     catch (Exception exception)
                     {
-                        Console.WriteLine($"Error : {exception.Message}");
+                        Logging.LogError($"{exception.Message}");
                         throw;
                     }
 

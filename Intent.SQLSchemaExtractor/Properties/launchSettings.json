@@ -2,7 +2,7 @@
   "profiles": {
     "Intent.SQLSchemaExtractor": {
       "commandName": "Project",
-      "commandLineArgs": "--serialized-config \"{\\\"ApplicationId\\\":\\\"c386987c-1b33-4876-934a-aad4a208a1bc\\\",\\\"DesignerId\\\":\\\"6ab29b31-27af-4f56-a67c-986d82097d63\\\",\\\"PackageId\\\":\\\"72220444-3fe0-46ca-af15-e4b23d119acc\\\",\\\"EntityNameConvention\\\":\\\"SingularEntity\\\",\\\"TableStereotypes\\\":\\\"WhenDifferent\\\",\\\"TypesToExport\\\":[\\\"Index\\\"],\\\"SchemaFilter\\\":[],\\\"ConnectionString\\\":\\\"Server=.;Initial Catalog=ICS;Integrated Security=false;MultipleActiveResultSets=True;Encrypt=False;User Id =sa;Password=IntentP@ssword123\\\",\\\"PackageFileName\\\":\\\"C:/Clients/ICS/PICSDBImport/intent/PICSDBImport/Intent.Metadata/Domain/PICSDBImport.Domain/PICSDBImport.Domain.pkg.config\\\",\\\"SettingPersistence\\\":\\\"All\\\"}\""
+      "commandLineArgs": "--serialized-config \"{\\\"ApplicationId\\\":\\\"35f4f9ea-380d-4709-a84b-e45b179c953c\\\",\\\"DesignerId\\\":\\\"6ab29b31-27af-4f56-a67c-986d82097d63\\\",\\\"PackageId\\\":\\\"05ed62f6-87a8-4713-8802-71418c5e444f\\\",\\\"EntityNameConvention\\\":\\\"SingularEntity\\\",\\\"TableStereotypes\\\":\\\"WhenDifferent\\\",\\\"TypesToExport\\\":[\\\"Table\\\",\\\"Index\\\"],\\\"SchemaFilter\\\":[],\\\"ConnectionString\\\":\\\"Server=.;Initial Catalog=ICS;Integrated Security=false;MultipleActiveResultSets=True;Encrypt=False;User Id =sa;Password=IntentP@ssword123\\\",\\\"PackageFileName\\\":\\\"C:/Workshop/Import2ICS/intent/Import2ICS/Intent.Metadata/Domain/Import2ICS.Domain/Import2ICS.Domain.pkg.config\\\",\\\"SettingPersistence\\\":\\\"All\\\"}\""
     }
   }
 }
