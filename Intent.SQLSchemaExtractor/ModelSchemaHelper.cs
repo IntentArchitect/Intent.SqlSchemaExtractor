@@ -29,13 +29,24 @@ namespace Intent.SQLSchemaExtractor
 		internal static readonly SpecializationType IndexType = new("Index", "436e3afe-b4ef-481c-b803-0d1e7d263561");
 		internal static readonly SpecializationType StoredProcedureType = new("Stored Procedure", "575edd35-9438-406d-b0a7-b99d6f29b560");
 		internal static readonly SpecializationType AssociationType = new("Association", "eaf9ed4e-0b61-4ac1-ba88-09f912c12087");
-		private static readonly SpecializationType IndexColumnType = new("Index Column", "c5ba925d-5c08-4809-a848-585a0cd4ddd3");
+		internal static readonly SpecializationType IndexColumnType = new("Index Column", "c5ba925d-5c08-4809-a848-585a0cd4ddd3");
 		internal static readonly SpecializationType StoredProcedureParameterType = new("Stored Procedure Parameter", "5823b192-eb03-47c8-90d8-5501c922e9a5");
 
 		private readonly ImportConfiguration _config;
 		private readonly PackageModelPersistable _package;
 		private readonly Database _db;
 		private Dictionary<string, ConflictingTable> _conflictingTableNames = new Dictionary<string, ConflictingTable>();
+
+		#region ConflictingTable Class
+		/// <summary>
+		///Represents Tables which cause "Class" name conflicts in the Model
+		///These are fine and expected
+		///e.g. [dbo].[Customer] && [account].[Customer]
+		///Here the different SQL Table names resolve to the same identifier
+		///e.g. [dbo].[tbl_Bank] && [dbo].[tbl___Bank]
+		///These will work but will break convention
+		///e.g. [dbo].[Bank] && [dbo].[Banks]
+		/// </summary>
 
 		private class ConflictingTable
 		{
@@ -51,66 +62,16 @@ namespace Intent.SQLSchemaExtractor
 			internal bool UnqiueIdentifier { get; set; }
 		};
 
+		#endregion 
+
 		public ModelSchemaHelper(ImportConfiguration config, PackageModelPersistable package, Database db)
-        {			
+		{
 			_config = config;
 			_package = package;
 			_db = db;
-			var unqiueNames = new Dictionary<string, List<ConflictingTable>>();
-			foreach (Table table in _db.Tables)
-			{
-				string className = GetClassName(table);
-				if (unqiueNames.ContainsKey(className))
-				{
-					bool differentSchemas = true;
-					bool unqiueIdentifier = true;
-					var otherTables = unqiueNames[className];
-					foreach (var entry in otherTables)
-					{
-						if (entry.Table.Schema == table.Schema)
-						{
-							entry.DifferentSchemas = false;
-							differentSchemas = false;
-							if (NormalizeTableName(entry.Table.Name) == NormalizeTableName(table.Name))
-							{
-								entry.UnqiueIdentifier = false;
-								unqiueIdentifier = false;
-							}
-						}
-					}
-					otherTables.Add(new ConflictingTable(table, differentSchemas, unqiueIdentifier));
-				}
-				else
-				{
-					unqiueNames.Add(className,new List<ConflictingTable> { new ConflictingTable(table , true)});
-				}
-			}
+			DetermineTableNameConflicts();
 
-			var conflicts = unqiueNames.Values.Where(v => v.Count > 1).ToList();
-			foreach (var conflict in conflicts)
-			{
-				//These are fine and expected
-				//e.g. [dbo].[Customer] && [account].[Customer]
-
-				if (conflict.Any(x => !x.UnqiueIdentifier))
-				{
-					//Here the different SQL Table names resolve to the same identifier
-					//e.g. [dbo].[tbl_Bank] && [dbo].[tbl___Bank]
-					throw new Exception($"Unable to uniquely resolve Entity names for {string.Join(",", conflict.Select(c => $"[{c.Table.Schema}].[{c.Table.Name}]"))}");
-				}
-				if (conflict.Any(x => !x.DifferentSchemas))
-				{
-					//These will work but will break convention
-					//e.g. [dbo].[Bank] && [dbo].[Banks]
-					Logging.LogWarning($"conflicting table names {string.Join(",", conflict.Select(c => $"[{c.Table.Schema}].[{c.Table.Name}]"))}");
-				}
-				foreach (var table in conflict)
-				{
-					_conflictingTableNames.Add(GetClassExternal(table.Table), table);
-				}
-			}
-
-		}
+		}		
 
 		public static PackageModelPersistable GetOrCreateDomainPackage(string fullPackagePath, string packageName)
 		{
@@ -401,11 +362,6 @@ namespace Intent.SQLSchemaExtractor
 			association.ExternalReference = identity.ExternalReference;
 			return association;
 		}
-		private string GetDefaultFKName(AssociationPersistable association, string targetClassName, string pkAttributeName)
-		{
-			return (association.TargetEnd.Name ?? targetClassName) + pkAttributeName;
-		}
-
 		public ElementPersistable GetOrCreateStoredProcedure(StoredProcedure storedProcedure)
 		{
 			var folder = GetOrCreateFolder(storedProcedure.Schema);
@@ -435,24 +391,6 @@ namespace Intent.SQLSchemaExtractor
 				});
 			}
 			element.ExternalReference = identity.ExternalReference;
-			return element;
-		}
-
-		private ElementPersistable GetOrCreateRepository(ElementPersistable folder, string repositoryName)
-		{
-			var element = _package.Classes.SingleOrDefault(x => x.Name == repositoryName && x.IsRepository());
-			if (element == null)
-			{
-				element = new ElementPersistable
-				{
-					Id = Guid.NewGuid().ToString(),
-					ParentFolderId = folder.Id,
-					Name = repositoryName,
-					SpecializationTypeId = RepositoryType.Id,
-					SpecializationType = RepositoryType.Name,
-				};
-				_package.AddElement(element);
-			}
 			return element;
 		}
 
@@ -489,8 +427,50 @@ namespace Intent.SQLSchemaExtractor
 
 			return element;
 		}
+		public void CreateIndexColumn(IndexedColumn indexColumn, ElementPersistable modelIndex, ElementPersistable? attribute)
+		{
+			MappingModelPersistable mapping = null;
+			if (attribute != null)
+			{
+				mapping = new MappingModelPersistable
+				{
+					MappingSettingsId = ColumnMappingSettingsId,
+					MetadataId = DomainMetadataId,
+					AutoSyncTypeReference = false,
+					Path = new List<MappedPathTargetPersistable> { new MappedPathTargetPersistable() { Id = attribute.Id, Name = attribute.Name, Type = ElementType.Element, Specialization = attribute.SpecializationType } }
+				};
 
-		private  ElementPersistable GetOrCreateFolder(string folderName)
+			}
+			var columnIndex = new ElementPersistable()
+			{
+				Id = Guid.NewGuid().ToString(),
+				Name = indexColumn.Name,
+				SpecializationTypeId = IndexColumnType.Id,
+				SpecializationType = IndexColumnType.Name,
+				IsMapped = mapping != null,
+				Mapping = mapping,
+				ParentFolderId = modelIndex.Id,
+				PackageId = _package.Id,
+				PackageName = _package.Name,
+			};
+
+			columnIndex.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Index.IndexColumn.Settings.DefinitionId, (stereotype) =>
+			{
+				stereotype.AddedByDefault = true;
+				stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
+				stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
+				stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.IndexColumn.Settings.PropertyId.Type, p => p.Value = indexColumn.IsIncluded ? "Included" : "Key");
+				stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.IndexColumn.Settings.PropertyId.SortDirection, p => p.Value = indexColumn.Descending ? "Descending" : "Ascending");
+			});
+			modelIndex.ChildElements.Add(columnIndex);
+		}
+
+		private string GetClassName(Table table)
+		{
+			return GetClassName(table.Name);
+		}
+
+		private ElementPersistable GetOrCreateFolder(string folderName)
 		{
 			var normalizedFolderName = NormalizeSchemaName(folderName);
 			var element = _package.Classes.SingleOrDefault(x => x.Name == normalizedFolderName && x.IsFolder());
@@ -542,44 +522,6 @@ namespace Intent.SQLSchemaExtractor
 			}
 			element.ExternalReference = identity.ExternalReference;
 			return element;
-		}
-
-		internal void CreateIndexColumn(IndexedColumn indexColumn, ElementPersistable modelIndex, ElementPersistable? attribute)
-		{
-			MappingModelPersistable mapping = null;
-			if (attribute != null)
-			{
-				mapping = new MappingModelPersistable
-				{
-					MappingSettingsId = ColumnMappingSettingsId,
-					MetadataId = DomainMetadataId,
-					AutoSyncTypeReference = false,
-					Path = new List<MappedPathTargetPersistable> { new MappedPathTargetPersistable() { Id = attribute.Id, Name = attribute.Name, Type = ElementType.Element, Specialization = attribute.SpecializationType } }
-				};
-
-			}
-			var columnIndex = new ElementPersistable()
-			{
-				Id = Guid.NewGuid().ToString(),
-				Name = indexColumn.Name,
-				SpecializationTypeId = IndexColumnType.Id,
-				SpecializationType = IndexColumnType.Name,
-				IsMapped = mapping != null,
-				Mapping = mapping,
-				ParentFolderId = modelIndex.Id,
-				PackageId = _package.Id,
-				PackageName = _package.Name,
-			};
-
-			columnIndex.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Index.IndexColumn.Settings.DefinitionId, (stereotype) =>
-			{
-				stereotype.AddedByDefault = true;
-				stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
-				stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-				stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.IndexColumn.Settings.PropertyId.Type, p => p.Value = indexColumn.IsIncluded ? "Included" : "Key");
-				stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Index.IndexColumn.Settings.PropertyId.SortDirection, p => p.Value = indexColumn.Descending ? "Descending" : "Ascending");
-			});
-			modelIndex.ChildElements.Add(columnIndex);
 		}
 
 
@@ -723,11 +665,6 @@ namespace Intent.SQLSchemaExtractor
 				return $"index:[{view.Schema}].[{view.Name}].[{index.Name}]".ToLower();
 			}
 			throw new Exception($"Unknown parent type : {index.Parent.ToString()}");
-		}
-
-		public string GetClassName(Table table)
-		{
-			return GetClassName(table.Name);
 		}
 
 		private string GetClassName(string name)
@@ -902,6 +839,84 @@ namespace Intent.SQLSchemaExtractor
 
 			normalized = normalized[..1].ToUpper() + normalized[1..];
 			return normalized;
+		}
+
+		private void DetermineTableNameConflicts()
+		{
+			var unqiueNames = new Dictionary<string, List<ConflictingTable>>();
+			foreach (Table table in _db.Tables)
+			{
+				string className = GetClassName(table);
+				if (unqiueNames.ContainsKey(className))
+				{
+					bool differentSchemas = true;
+					bool unqiueIdentifier = true;
+					var otherTables = unqiueNames[className];
+					foreach (var entry in otherTables)
+					{
+						if (entry.Table.Schema == table.Schema)
+						{
+							entry.DifferentSchemas = false;
+							differentSchemas = false;
+							if (NormalizeTableName(entry.Table.Name) == NormalizeTableName(table.Name))
+							{
+								entry.UnqiueIdentifier = false;
+								unqiueIdentifier = false;
+							}
+						}
+					}
+					otherTables.Add(new ConflictingTable(table, differentSchemas, unqiueIdentifier));
+				}
+				else
+				{
+					unqiueNames.Add(className, new List<ConflictingTable> { new ConflictingTable(table, true) });
+				}
+			}
+
+			var conflicts = unqiueNames.Values.Where(v => v.Count > 1).ToList();
+			foreach (var conflict in conflicts)
+			{
+				//These are fine and expected
+				//e.g. [dbo].[Customer] && [account].[Customer]
+
+				if (conflict.Any(x => !x.UnqiueIdentifier))
+				{
+					//Here the different SQL Table names resolve to the same identifier
+					//e.g. [dbo].[tbl_Bank] && [dbo].[tbl___Bank]
+					throw new Exception($"Unable to uniquely resolve Entity names for {string.Join(",", conflict.Select(c => $"[{c.Table.Schema}].[{c.Table.Name}]"))}");
+				}
+				if (conflict.Any(x => !x.DifferentSchemas))
+				{
+					//These will work but will break convention
+					//e.g. [dbo].[Bank] && [dbo].[Banks]
+					Logging.LogWarning($"conflicting table names {string.Join(",", conflict.Select(c => $"[{c.Table.Schema}].[{c.Table.Name}]"))}");
+				}
+				foreach (var table in conflict)
+				{
+					_conflictingTableNames.Add(GetClassExternal(table.Table), table);
+				}
+			}
+		}
+		private string GetDefaultFKName(AssociationPersistable association, string targetClassName, string pkAttributeName)
+		{
+			return (association.TargetEnd.Name ?? targetClassName) + pkAttributeName;
+		}
+		private ElementPersistable GetOrCreateRepository(ElementPersistable folder, string repositoryName)
+		{
+			var element = _package.Classes.SingleOrDefault(x => x.Name == repositoryName && x.IsRepository());
+			if (element == null)
+			{
+				element = new ElementPersistable
+				{
+					Id = Guid.NewGuid().ToString(),
+					ParentFolderId = folder.Id,
+					Name = repositoryName,
+					SpecializationTypeId = RepositoryType.Id,
+					SpecializationType = RepositoryType.Name,
+				};
+				_package.AddElement(element);
+			}
+			return element;
 		}
 
 	}
