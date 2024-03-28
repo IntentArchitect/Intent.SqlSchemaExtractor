@@ -19,7 +19,7 @@ namespace Intent.SQLSchemaExtractor
         private readonly ImportConfiguration _config;
         private ModelSchemaHelper _modelSchemaHelper;
         private List<string> _tablesToIgnore = new List<string> { "sysdiagrams", "__EFMigrationsHistory" };
-		private List<string> _viewsToIgnore = new List<string> { "INFORMATION_SCHEMA" };
+		private List<string> _viewsToIgnore = new List<string> { };
 
 		public string SchemaVersion { get; } = "2.0";
 
@@ -182,7 +182,7 @@ namespace Intent.SQLSchemaExtractor
 		}
 		private View[] GetFilteredViews()
 		{
-            return _db.Views.OfType<View>().Where(view => view.Schema is not "sys" && !_viewsToIgnore.Contains(view.Name) && _config.ExportSchema(view.Schema)).ToArray();
+            return _db.Views.OfType<View>().Where(view => (view.Schema is not "sys" and not "INFORMATION_SCHEMA") && !_viewsToIgnore.Contains(view.Name) && _config.ExportSchema(view.Schema)).ToArray();
 		}
 
 		private void ProcessViews(SchemaExtractorConfiguration config, PackageModelPersistable package)

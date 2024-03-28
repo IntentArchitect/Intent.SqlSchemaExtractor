@@ -37,54 +37,76 @@ namespace Intent.SQLSchemaExtractor
 		private readonly Database _db;
 		private Dictionary<string, ConflictingTable> _conflictingTableNames = new Dictionary<string, ConflictingTable>();
 
-		private record ConflictingTable (Table Table, bool DifferentSchemas);
+		private class ConflictingTable
+		{
+			public ConflictingTable(Table table, bool differentSchemas, bool uniqueIdentifier = true)
+			{
+				Table = table;
+				DifferentSchemas = differentSchemas;
+				UnqiueIdentifier = uniqueIdentifier;
+			}
+
+			internal Table Table { get; }
+			internal bool DifferentSchemas { get; set;}
+			internal bool UnqiueIdentifier { get; set; }
+		};
 
 		public ModelSchemaHelper(ImportConfiguration config, PackageModelPersistable package, Database db)
         {			
 			_config = config;
 			_package = package;
 			_db = db;
-			var unqiueNames = new Dictionary<string, List<Table>>();
+			var unqiueNames = new Dictionary<string, List<ConflictingTable>>();
 			foreach (Table table in _db.Tables)
 			{
 				string className = GetClassName(table);
 				if (unqiueNames.ContainsKey(className))
 				{
+					bool differentSchemas = true;
+					bool unqiueIdentifier = true;
 					var otherTables = unqiueNames[className];
-					otherTables.Add(table);
+					foreach (var entry in otherTables)
+					{
+						if (entry.Table.Schema == table.Schema)
+						{
+							entry.DifferentSchemas = false;
+							differentSchemas = false;
+							if (NormalizeTableName(entry.Table.Name) == NormalizeTableName(table.Name))
+							{
+								entry.UnqiueIdentifier = false;
+								unqiueIdentifier = false;
+							}
+						}
+					}
+					otherTables.Add(new ConflictingTable(table, differentSchemas, unqiueIdentifier));
 				}
 				else
 				{
-					unqiueNames.Add(className,new List<Table> { table });
+					unqiueNames.Add(className,new List<ConflictingTable> { new ConflictingTable(table , true)});
 				}
 			}
 
 			var conflicts = unqiueNames.Values.Where(v => v.Count > 1).ToList();
 			foreach (var conflict in conflicts)
 			{
-				//Conflicting names are in different schemas
-				if (conflict.Select(t => t.Schema).Distinct().Count() == conflict.Count)
+				//These are fine and expected
+				//e.g. [dbo].[Customer] && [account].[Customer]
+
+				if (conflict.Any(x => !x.UnqiueIdentifier))
 				{
-					foreach (var table in conflict)
-					{
-						_conflictingTableNames.Add(GetClassExternal(table), new ConflictingTable(table, true));
-					}
+					//Here the different SQL Table names resolve to the same identifier
+					//e.g. [dbo].[tbl_Bank] && [dbo].[tbl___Bank]
+					throw new Exception($"Unable to uniquely resolve Entity names for {string.Join(",", conflict.Select(c => $"[{c.Table.Schema}].[{c.Table.Name}]"))}");
 				}
-				else
+				if (conflict.Any(x => !x.DifferentSchemas))
 				{
-					var className = GetClassName(conflict[0]);
-					Logging.LogWarning($"conflicting table names ({className}) from {string.Join(",", conflict.Select(t => $"[{t.Schema}].[{t.Name}]"))}");
-
-					var usableNames = conflict.Select(t => NormalizeTableName(t.Name)).Distinct().Count() == conflict.Count;
-					if (!usableNames)
-					{
-						throw new Exception($"Unable to uniquely resolve Entity names for {string.Join(",", conflict.Select(t => $"[{t.Schema}].[{t.Name}]"))}");
-					}
-
-					foreach (var table in conflict)
-					{
-						_conflictingTableNames.Add(GetClassExternal(table), new ConflictingTable(table, false));
-					}
+					//These will work but will break convention
+					//e.g. [dbo].[Bank] && [dbo].[Banks]
+					Logging.LogWarning($"conflicting table names {string.Join(",", conflict.Select(c => $"[{c.Table.Schema}].[{c.Table.Name}]"))}");
+				}
+				foreach (var table in conflict)
+				{
+					_conflictingTableNames.Add(GetClassExternal(table.Table), table);
 				}
 			}
 
