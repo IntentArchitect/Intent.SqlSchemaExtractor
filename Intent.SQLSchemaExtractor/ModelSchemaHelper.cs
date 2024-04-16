@@ -218,7 +218,13 @@ namespace Intent.SQLSchemaExtractor
 			var targetColumn = foreignKey.Columns[0].Name;
 
 			var sourceClassId = @class.Id;
-			var targetClass = _package.Classes.Single(x => x.ExternalReference == GetClassExternal(targetTable) && x.IsClass());
+			var targetClass = _package.Classes.SingleOrDefault(x => x.ExternalReference == GetClassExternal(targetTable) && x.IsClass());
+			if (targetClass is null)
+			{
+				Logging.LogWarning($@"Foreign Key is referencing Table ""{targetTable.Name}"" but couldn't find the Class representing that Table.");
+				return null;
+			}
+			
 			string targetName = null;
 
 			var singularTableName = targetTable.Name.Singularize(false);
