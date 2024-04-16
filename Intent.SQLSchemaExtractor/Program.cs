@@ -9,15 +9,10 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
-using Intent.IArchitect.CrossPlatform.IO;
 using Intent.Modules.Common.Templates;
 using Microsoft.Data.SqlClient;
 using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.Smo;
-using Intent.IArchitect.Agent.Persistence;
-using Intent.IArchitect.Agent.Persistence.Model;
-using Newtonsoft.Json.Linq;
-using System.Data.Common;
 
 namespace Intent.SQLSchemaExtractor
 {
@@ -57,10 +52,10 @@ namespace Intent.SQLSchemaExtractor
                 new Option<string?>(
                     name: GetOptionName(nameof(ImportConfiguration.PackageFileName)),
                     description: "The file name of the Intent Domain Package into which to synchronize the metadata."),
-				new Option<string?>(
-					name: GetOptionName(nameof(ImportConfiguration.SerializedConfig)),
-					description: "json string representing a serialized configuration file."),
-			};
+                new Option<string?>(
+                    name: GetOptionName(nameof(ImportConfiguration.SerializedConfig)),
+                    description: "json string representing a serialized configuration file."),
+            };
 
             rootCommand.SetHandler(
                 handle: (
@@ -69,7 +64,7 @@ namespace Intent.SQLSchemaExtractor
                     string? connectionString,
                     string? packageFileName,
                     string? serializedConfig
-                    ) =>
+                ) =>
                 {
                     try
                     {
@@ -91,13 +86,13 @@ namespace Intent.SQLSchemaExtractor
                         ImportConfiguration config;
                         if (serializedConfig != null)
                         {
-							config = JsonSerializer.Deserialize<ImportConfiguration>(serializedConfig, serializerOptions)
-										 ?? throw new Exception($"Parsing of serialized-config returned null.");
-						}
-						else if (configFile != null)
+                            config = JsonSerializer.Deserialize<ImportConfiguration>(serializedConfig, serializerOptions)
+                                     ?? throw new Exception($"Parsing of serialized-config returned null.");
+                        }
+                        else if (configFile != null)
                         {
                             config = JsonSerializer.Deserialize<ImportConfiguration>(File.ReadAllText(configFile.FullName), serializerOptions)
-                                         ?? throw new Exception($"Parsing of \"{configFile.FullName}\" returned null.");
+                                     ?? throw new Exception($"Parsing of \"{configFile.FullName}\" returned null.");
                         }
                         else
                         {
@@ -123,7 +118,6 @@ namespace Intent.SQLSchemaExtractor
                         Logging.LogError($"{exception.Message}");
                         throw;
                     }
-
                 },
                 symbols: Enumerable.Empty<IValueDescriptor>()
                     .Concat(rootCommand.Options)
@@ -135,7 +129,6 @@ namespace Intent.SQLSchemaExtractor
                 .UseDefaults()
                 .Build()
                 .Invoke(args);
-
         }
 
         public static void Run(ImportConfiguration config)
@@ -149,35 +142,35 @@ namespace Intent.SQLSchemaExtractor
             {
                 OnTableHandlers = new[]
                 {
-                            RdbmsDecorator.ApplyTableDetails
-                        },
+                    RdbmsDecorator.ApplyTableDetails
+                },
                 OnViewHandlers = new[]
                 {
-                            RdbmsDecorator.ApplyViewDetails
-                        },
+                    RdbmsDecorator.ApplyViewDetails
+                },
                 OnTableColumnHandlers = new[]
                 {
-                            RdbmsDecorator.ApplyPrimaryKey,
-                            RdbmsDecorator.ApplyColumnDetails,
-                            RdbmsDecorator.ApplyTextConstraint,
-                            RdbmsDecorator.ApplyDecimalConstraint,
-                            RdbmsDecorator.ApplyDefaultConstraint,
-                            RdbmsDecorator.ApplyComputedValue
-                        },
+                    RdbmsDecorator.ApplyPrimaryKey,
+                    RdbmsDecorator.ApplyColumnDetails,
+                    RdbmsDecorator.ApplyTextConstraint,
+                    RdbmsDecorator.ApplyDecimalConstraint,
+                    RdbmsDecorator.ApplyDefaultConstraint,
+                    RdbmsDecorator.ApplyComputedValue
+                },
                 OnViewColumnHandlers = new[]
                 {
-                            RdbmsDecorator.ApplyColumnDetails,
-                            RdbmsDecorator.ApplyTextConstraint,
-                            RdbmsDecorator.ApplyDecimalConstraint
-                        },
+                    RdbmsDecorator.ApplyColumnDetails,
+                    RdbmsDecorator.ApplyTextConstraint,
+                    RdbmsDecorator.ApplyDecimalConstraint
+                },
                 OnIndexHandlers = new[]
                 {
-                            RdbmsDecorator.ApplyIndex
-                        },
+                    RdbmsDecorator.ApplyIndex
+                },
                 OnStoredProcedureHandlers = new[]
                 {
-                            RdbmsDecorator.ApplyStoredProcedureSettings
-                        }
+                    RdbmsDecorator.ApplyStoredProcedureSettings
+                }
             });
             package.Name = System.IO.Path.GetFileNameWithoutExtension(package.Name);
             package.References.Add(new PackageReferenceModel
@@ -208,58 +201,62 @@ namespace Intent.SQLSchemaExtractor
                 Module = "Intent.EntityFrameworkCore.Repositories",
                 IsExternal = true
             });
-			if (config.SettingPersistence != SettingPersistence.None)
-			{
+            if (config.SettingPersistence != SettingPersistence.None)
+            {
                 string connectionString = config.ConnectionString!;
 
                 if (config.SettingPersistence == SettingPersistence.AllSanitisedConnectionString)
                 {
-					var builder = new SqlConnectionStringBuilder();
-					builder.ConnectionString = connectionString;
+                    var builder = new SqlConnectionStringBuilder();
+                    builder.ConnectionString = connectionString;
 
-					bool addPassword = false;
-					if (builder.Remove("Password"))
-					{
-						addPassword = true;
-					}
-					var sanatisedConnectionString = builder.ConnectionString;
-					if (addPassword)
-					{
-						sanatisedConnectionString = "Password=  ;" + sanatisedConnectionString;
-					}
+                    bool addPassword = false;
+                    if (builder.Remove("Password"))
+                    {
+                        addPassword = true;
+                    }
+
+                    var sanatisedConnectionString = builder.ConnectionString;
+                    if (addPassword)
+                    {
+                        sanatisedConnectionString = "Password=  ;" + sanatisedConnectionString;
+                    }
+
                     connectionString = sanatisedConnectionString;
-				}
+                }
 
-				if (config.SettingPersistence == SettingPersistence.AllWithoutConnectionString)
+                if (config.SettingPersistence == SettingPersistence.AllWithoutConnectionString)
                 {
-					package.RemoveMetadata("sql-import:connectionString");
+                    package.RemoveMetadata("sql-import:connectionString");
                 }
                 else
                 {
-					package.AddMetadata("sql-import:connectionString", connectionString);
-				}
-				package.AddMetadata("sql-import:tableStereotypes", config.TableStereotypes.ToString() );
-				package.AddMetadata("sql-import:entityNameConvention", config.EntityNameConvention.ToString());
-				package.AddMetadata("sql-import:schemaFilter", config.SchemaFilter.Any() ? string.Join(";", config.SchemaFilter) : "");
-				package.AddMetadata("sql-import:typesToExport", config.TypesToExport.Any() ? string.Join(";", config.TypesToExport.Select(t => t.ToString())) : "");
-				package.AddMetadata("sql-import:settingPersistence", config.SettingPersistence.ToString());
-			}
-			else
-            {
-				package.RemoveMetadata("sql-import:connectionString");
-				package.RemoveMetadata("sql-import:tableStereotypes");
-				package.RemoveMetadata("sql-import:entityNameConvention");
-				package.RemoveMetadata("sql-import:schemaFilter");
-				package.RemoveMetadata("sql-import:typesToExport");
-				package.RemoveMetadata("sql-import:settingPersistence");
-			}
+                    package.AddMetadata("sql-import:connectionString", connectionString);
+                }
 
-			Console.WriteLine("Saving package...");
+                package.AddMetadata("sql-import:tableStereotypes", config.TableStereotypes.ToString());
+                package.AddMetadata("sql-import:entityNameConvention", config.EntityNameConvention.ToString());
+                package.AddMetadata("sql-import:schemaFilter", config.SchemaFilter.Any() ? string.Join(";", config.SchemaFilter) : "");
+                package.AddMetadata("sql-import:tableViewFilterFilePath", config.TableViewFilterFilePath);
+                package.AddMetadata("sql-import:typesToExport", config.TypesToExport.Any() ? string.Join(";", config.TypesToExport.Select(t => t.ToString())) : "");
+                package.AddMetadata("sql-import:settingPersistence", config.SettingPersistence.ToString());
+            }
+            else
+            {
+                package.RemoveMetadata("sql-import:connectionString");
+                package.RemoveMetadata("sql-import:tableStereotypes");
+                package.RemoveMetadata("sql-import:entityNameConvention");
+                package.RemoveMetadata("sql-import:schemaFilter");
+                package.RemoveMetadata("sql-import:tableViewFilterFilePath");
+                package.RemoveMetadata("sql-import:typesToExport");
+                package.RemoveMetadata("sql-import:settingPersistence");
+            }
+
+            Console.WriteLine("Saving package...");
             package.Save();
 
             Console.WriteLine("Package saved successfully.");
             Console.WriteLine();
         }
-
     }
 }

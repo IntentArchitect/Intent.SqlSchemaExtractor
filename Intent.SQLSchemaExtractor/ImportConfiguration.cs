@@ -1,8 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Intent.SQLSchemaExtractor
 {
@@ -14,6 +14,7 @@ namespace Intent.SQLSchemaExtractor
         public HashSet<ExportTypes> TypesToExport { get; set; } = new HashSet<ExportTypes> { ExportTypes.Table, ExportTypes.View, ExportTypes.StoredProcedure, ExportTypes.Index };
 
         public HashSet<string> SchemaFilter { get; set; } = new HashSet<string>();
+        public string TableViewFilterFilePath { get; set; }
 
         public string? ConnectionString { get; set; }
         public string? PackageFileName { get; set; }
@@ -25,11 +26,20 @@ namespace Intent.SQLSchemaExtractor
         {            
         }
 
+        internal IReadOnlyList<string> GetFilteredTableViewList()
+        {
+	        if (string.IsNullOrWhiteSpace(TableViewFilterFilePath))
+	        {
+		        return ImmutableList<string>.Empty;
+	        }
+
+	        var tables = File.ReadAllLines(TableViewFilterFilePath, Encoding.UTF8).Where(line => !string.IsNullOrWhiteSpace(line)).Select(line => line.Trim()).ToList();
+	        return tables;
+        }
+
         internal bool ExportSchema(string schema)
         {
-            if (!SchemaFilter.Any()) return true;
-
-            return SchemaFilter.Contains(schema);
+	        return SchemaFilter.Count == 0 || SchemaFilter.Contains(schema);
         }
 
         internal bool ExportTables()

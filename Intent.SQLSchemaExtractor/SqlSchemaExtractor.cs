@@ -1,6 +1,5 @@
 ﻿using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
-using Intent.Modules.Common.Templates;
 using Microsoft.SqlServer.Management.Smo;
 using System;
 using System.Collections.Generic;
@@ -8,7 +7,6 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using Microsoft.SqlServer.Management.Common;
 using Index = Microsoft.SqlServer.Management.Smo.Index;
 
 namespace Intent.SQLSchemaExtractor
@@ -17,29 +15,36 @@ namespace Intent.SQLSchemaExtractor
     {
         private readonly Database _db;
         private readonly ImportConfiguration _config;
+        private readonly List<string> _tablesToIgnore = new List<string> { "sysdiagrams", "__EFMigrationsHistory" };
+        private readonly List<string> _viewsToIgnore = new List<string> { };
+        private readonly HashSet<string> _tableViewsFilter;
         private ModelSchemaHelper _modelSchemaHelper;
-        private List<string> _tablesToIgnore = new List<string> { "sysdiagrams", "__EFMigrationsHistory" };
-		private List<string> _viewsToIgnore = new List<string> { };
 
-		public string SchemaVersion { get; } = "2.0";
+        public string SchemaVersion { get; } = "2.0";
 
         public SqlSchemaExtractor(ImportConfiguration config, Database db)
         {
             _db = db;
             _config = config;
+            _tableViewsFilter = new HashSet<string>(_config.GetFilteredTableViewList(), StringComparer.InvariantCultureIgnoreCase);
+        }
 
-		}
-
+        private bool IncludeTableView(string tableOrViewName)
+        {
+            return _tableViewsFilter.Count == 0 || _tableViewsFilter.Contains(tableOrViewName);
+        }
+        
         public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtractorConfiguration config)
         {
             var (fullPackagePath, packageName) = GetPackageLocationAndName(packageNameOrPath);
             var package = ModelSchemaHelper.GetOrCreateDomainPackage(fullPackagePath, packageName);
-			_modelSchemaHelper = new ModelSchemaHelper(_config, package, _db);
-			var savedSchemaVersion = package.Metadata.FirstOrDefault(m => m.Key == "sql-import:schemaVersion")?.Value;
+            _modelSchemaHelper = new ModelSchemaHelper(_config, package, _db);
+            var savedSchemaVersion = package.Metadata.FirstOrDefault(m => m.Key == "sql-import:schemaVersion")?.Value;
             if (savedSchemaVersion != SchemaVersion)
             {
                 MigrateSchema(package, savedSchemaVersion);
             }
+
             package.IsExternalOld = false;
 
             ApplyStereotypes(config, package);
@@ -48,12 +53,13 @@ namespace Intent.SQLSchemaExtractor
                 ProcessTables(config, package);
                 ProcessForeignKeys(config, package);
             }
+
             if (_config.ExportIndexes())
             {
-				ProcessIndexes(config, package);
-			}
+                ProcessIndexes(config, package);
+            }
 
-			if (_config.ExportViews())
+            if (_config.ExportViews())
             {
                 ProcessViews(config, package);
             }
@@ -64,21 +70,24 @@ namespace Intent.SQLSchemaExtractor
             }
 
             package.References ??= new List<PackageReferenceModel>();
-			package.AddMetadata("sql-import:schemaVersion", SchemaVersion);
+            package.AddMetadata("sql-import:schemaVersion", SchemaVersion);
 
-			return package;
+            return package;
         }
 
-		private void MigrateSchema(PackageModelPersistable package, string? oldFileVersion)
-		{
-		}
+        private void MigrateSchema(PackageModelPersistable package, string? oldFileVersion)
+        {
+        }
 
+        private Table[]? _cachedFilteredTables;
         private Table[] GetFilteredTables()
         {
-				return _db.Tables.OfType<Table>().Where(table => !_tablesToIgnore.Contains( table.Name) && _config.ExportSchema(table.Schema)).ToArray();
-		}
+            return _cachedFilteredTables ??= _db.Tables.OfType<Table>()
+                .Where(table => !_tablesToIgnore.Contains(table.Name) && _config.ExportSchema(table.Schema) && IncludeTableView(table.Name))
+                .ToArray();
+        }
 
-		private static void ApplyStereotypes(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        private static void ApplyStereotypes(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
             if (package.Stereotypes.Any(p => p.DefinitionId == Constants.Stereotypes.Rdbms.RelationalDatabase.DefinitionId))
             {
@@ -104,12 +113,11 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine();
 
             var filteredTables = GetFilteredTables();
-            var tableCount = filteredTables.Length;
             foreach (Table table in filteredTables)
             {
                 var @class = _modelSchemaHelper.GetClass(table);
 
-				if (@class != null)
+                if (@class != null)
                 {
                     foreach (Index tableIndex in table.Indexes)
                     {
@@ -124,7 +132,7 @@ namespace Intent.SQLSchemaExtractor
                         }
                     }
                 }
-			}
+            }
         }
 
         private void ProcessTables(SchemaExtractorConfiguration config, PackageModelPersistable package)
@@ -134,11 +142,11 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine("======");
             Console.WriteLine();
 
-			var filteredTables = GetFilteredTables();
-			var tableCount = filteredTables.Length;
+            var filteredTables = GetFilteredTables();
+            var tableCount = filteredTables.Length;
             var tableNumber = 0;
 
-			foreach (Table table in filteredTables)
+            foreach (Table table in filteredTables)
             {
                 var @class = _modelSchemaHelper.GetOrCreateClass(table);
 
@@ -164,28 +172,31 @@ namespace Intent.SQLSchemaExtractor
             }
         }
 
-		private void ProcessForeignKeys(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        private void ProcessForeignKeys(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
             Console.WriteLine();
             Console.WriteLine("Foreign Keys");
             Console.WriteLine("============");
             Console.WriteLine();
 
-			var filteredTables = GetFilteredTables();
-			foreach (Table table in filteredTables)
+            var filteredTables = GetFilteredTables();
+            foreach (Table table in filteredTables)
             {
                 foreach (ForeignKey foreignKey in table.ForeignKeys)
                 {
                     var association = _modelSchemaHelper.GetOrCreateAssociation(foreignKey);
-				}
-			}
-		}
-		private View[] GetFilteredViews()
-		{
-            return _db.Views.OfType<View>().Where(view => (view.Schema is not "sys" and not "INFORMATION_SCHEMA") && !_viewsToIgnore.Contains(view.Name) && _config.ExportSchema(view.Schema)).ToArray();
-		}
+                }
+            }
+        }
 
-		private void ProcessViews(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        private View[]? _cachedFilteredViews;
+        private View[] GetFilteredViews()
+        {
+            return _cachedFilteredViews ??= _db.Views.OfType<View>()
+                .Where(view => (view.Schema is not "sys" and not "INFORMATION_SCHEMA") && !_viewsToIgnore.Contains(view.Name) && _config.ExportSchema(view.Schema) && IncludeTableView(view.Name)).ToArray();
+        }
+
+        private void ProcessViews(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
             Console.WriteLine();
             Console.WriteLine("Views");
@@ -219,15 +230,15 @@ namespace Intent.SQLSchemaExtractor
                     }
                 }
             }
-		}
+        }
 
-		private StoredProcedure[] GetFilteredStoredProcedures()
-		{
-			return _db.StoredProcedures.OfType<StoredProcedure>().Where(storedProc => storedProc.Schema is not "sys" && _config.ExportSchema(storedProc.Schema)).ToArray();
-		}
+        private StoredProcedure[] GetFilteredStoredProcedures()
+        {
+            return _db.StoredProcedures.OfType<StoredProcedure>().Where(storedProc => storedProc.Schema is not "sys" && _config.ExportSchema(storedProc.Schema)).ToArray();
+        }
 
 
-		private void ProcessStoredProcedures(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        private void ProcessStoredProcedures(SchemaExtractorConfiguration config, PackageModelPersistable package)
         {
             Console.WriteLine();
             Console.WriteLine("Stored Procedures");
@@ -310,19 +321,19 @@ EXEC sp_describe_first_result_set
             {
                 return null;
             }
-            
+
             foreach (DataRow row in dataTable.Rows)
             {
                 var schema = row["source_schema"].ToString();
                 var table = row["source_table"].ToString();
 
-                // If the source schema is already set and it's different from the current row's schema
+                // If the source schema is already set, and it's different from the current row's schema
                 if (sourceSchema != null && sourceSchema != schema)
                 {
                     return null;
                 }
 
-                // If the source table is already set and it's different from the current row's table
+                // If the source table is already set, and it's different from the current row's table
                 if (sourceTable != null && sourceTable != table)
                 {
                     return null;
@@ -343,6 +354,7 @@ EXEC sp_describe_first_result_set
             {
                 return null;
             }
+
             return tableId;
         }
 
@@ -389,8 +401,8 @@ EXEC sp_describe_first_result_set
                 case SqlDataType.NText:
                     return Constants.TypeDefinitions.CommonTypes.String;
                 case SqlDataType.Time:
-					return Constants.TypeDefinitions.CommonTypes.TimeSpan;
-				case SqlDataType.BigInt:
+                    return Constants.TypeDefinitions.CommonTypes.TimeSpan;
+                case SqlDataType.BigInt:
                     return Constants.TypeDefinitions.CommonTypes.Long;
                 case SqlDataType.Int:
                     return Constants.TypeDefinitions.CommonTypes.Int;
@@ -431,11 +443,11 @@ EXEC sp_describe_first_result_set
                 case SqlDataType.UserDefinedTableType:
                 case SqlDataType.Geometry:
                 case SqlDataType.Geography:
-				case SqlDataType.HierarchyId:
-					Logging.LogWarning($"Unsupported column type: {dataType.SqlDataType.ToString()}");
-					return null;
-				default:
-					Logging.LogWarning($"Unknown column type: {dataType.SqlDataType.ToString()}");
+                case SqlDataType.HierarchyId:
+                    Logging.LogWarning($"Unsupported column type: {dataType.SqlDataType.ToString()}");
+                    return null;
+                default:
+                    Logging.LogWarning($"Unknown column type: {dataType.SqlDataType.ToString()}");
                     return null;
             }
         }
@@ -447,7 +459,10 @@ EXEC sp_describe_first_result_set
             new List<Action<ImportConfiguration, Table, ElementPersistable>>();
 
         public IEnumerable<Action<Column, ElementPersistable>> OnTableColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
-        public IEnumerable<Action<ImportConfiguration, Index, ElementPersistable, ModelSchemaHelper>> OnIndexHandlers { get; set; } = new List<Action<ImportConfiguration, Index, ElementPersistable, ModelSchemaHelper>>();
+
+        public IEnumerable<Action<ImportConfiguration, Index, ElementPersistable, ModelSchemaHelper>> OnIndexHandlers { get; set; } =
+            new List<Action<ImportConfiguration, Index, ElementPersistable, ModelSchemaHelper>>();
+
         public IEnumerable<Action<View, ElementPersistable>> OnViewHandlers { get; set; } = new List<Action<View, ElementPersistable>>();
         public IEnumerable<Action<Column, ElementPersistable>> OnViewColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
         public IEnumerable<Action<StoredProcedure, ElementPersistable>> OnStoredProcedureHandlers { get; set; } = new List<Action<StoredProcedure, ElementPersistable>>();
