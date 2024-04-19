@@ -15,7 +15,7 @@ namespace Intent.SQLSchemaExtractor
     {
         private readonly Database _db;
         private readonly ImportConfiguration _config;
-        private readonly List<string> _tablesToIgnore = new List<string> { "sysdiagrams", "__EFMigrationsHistory" };
+        private readonly List<string> _tablesToIgnore = new List<string> { "sysdiagrams", "__MigrationHistory", "__EFMigrationsHistory" };
         private readonly List<string> _viewsToIgnore = new List<string> { };
         private readonly HashSet<string> _tableViewsFilter;
         private ModelSchemaHelper _modelSchemaHelper;
