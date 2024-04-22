@@ -54,7 +54,7 @@ namespace Intent.SQLSchemaExtractor
                     description: "The file name of the Intent Domain Package into which to synchronize the metadata."),
                 new Option<string?>(
                     name: GetOptionName(nameof(ImportConfiguration.SerializedConfig)),
-                    description: "json string representing a serialized configuration file."),
+                    description: "JSON string representing a serialized configuration file."),
             };
 
             rootCommand.SetHandler(
