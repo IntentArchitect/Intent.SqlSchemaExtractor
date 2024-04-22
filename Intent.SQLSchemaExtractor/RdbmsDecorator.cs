@@ -353,21 +353,29 @@ internal static class RdbmsDecorator
     }
 	private static bool IsForeignKeyIndex(ImportConfiguration config, Index index)
 	{
-		if (index.IndexedColumns.Count == 1)
+		if (index.Parent is Table table)
 		{
-			if (index.Parent is Table table)
+			foreach (ForeignKey foreignKey in table.ForeignKeys)
 			{
-				foreach (ForeignKey foreignKey in table.ForeignKeys)
-				{
-					var sourceColumns = foreignKey.Columns.Cast<ForeignKeyColumn>().Select(x => GetColumn(table, x.Name)).ToList();
-					if (sourceColumns.Count == 1)
+				var sourceColumns = foreignKey.Columns.Cast<ForeignKeyColumn>().Select(x => GetColumn(table, x.Name)).ToList();
+                if (sourceColumns.Count !=  index.IndexedColumns.Count)
+                {
+                    continue;
+                }
+                bool match = true;
+                for (int i = 0; i < sourceColumns.Count; i++)
+                {
+                    var sourceColumn = sourceColumns[i];
+					if (sourceColumn.Name != index.IndexedColumns[i].Name)
 					{
-						if (sourceColumns[0].Name == index.IndexedColumns[0].Name)
-						{
-							return true;
-						}
+                        match = false;
+						break;
 					}
 				}
+                if (match) 
+                {
+                    return true;
+                }
 			}
 		}
 		return false;
