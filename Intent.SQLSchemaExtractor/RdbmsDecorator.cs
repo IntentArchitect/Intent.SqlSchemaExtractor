@@ -18,15 +18,15 @@ internal static class RdbmsDecorator
 {
     public static void ApplyTableDetails(ImportConfiguration config, Table table, ElementPersistable @class)
     {
-
         if (!RequiresTableStereoType(config, table, @class))
         {
             return;
         }
 
         var stereotype = @class.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Table.DefinitionId, InitTableStereotype);
-        //For now always set this incase generated table names don't match the generated names due to things like pluralization
+        //For now always set this in case generated table names don't match the generated names due to things like pluralization
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.Table.PropertyId.Name).Value = table.Name;
+        return;
 
         static void InitTableStereotype(StereotypePersistable stereotype)
         {
@@ -40,26 +40,24 @@ internal static class RdbmsDecorator
 
     private static bool RequiresTableStereoType(ImportConfiguration config, Table table, ElementPersistable @class)
     {
-        if (config.TableStereotypes == TableStereotypes.Always)
+        return config.TableStereotypes switch
         {
-            return true;
-        }
-        else if (config.TableStereotypes == TableStereotypes.WhenDifferent)
-        {
-            switch (config.EntityNameConvention) 
-            {
-                case EntityNameConvention.MatchTable: return @class.Name != table.Name;
-                case EntityNameConvention.SingularEntity: return @class.Name.Pluralize() != table.Name;
-            }
-        }
-        return false;
+            TableStereotypes.Always => true,
+            TableStereotypes.WhenDifferent when config.EntityNameConvention is EntityNameConvention.MatchTable => @class.Name != table.Name,
+            TableStereotypes.WhenDifferent when config.EntityNameConvention is EntityNameConvention.SingularEntity => @class.Name.Pluralize() != table.Name,
+            _ => false
+        };
     }
 
     public static void ApplyViewDetails(View view, ElementPersistable @class)
     {
         var stereotype = @class.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.View.DefinitionId, InitTableStereotype);
         if (view.Name == @class.Name)
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.View.PropertyId.Name).Value = view.Name;
+        {
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.View.PropertyId.Name).Value = view.Name;
+        }
+
+        return;
 
         static void InitTableStereotype(StereotypePersistable stereotype)
         {
@@ -80,6 +78,7 @@ internal static class RdbmsDecorator
 
         var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.PrimaryKey.DefinitionId, InitPrimaryKeyStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.Identity).Value = column.Identity.ToString().ToLower();
+        return;
 
         static void InitPrimaryKeyStereotype(StereotypePersistable stereotype)
         {
@@ -117,6 +116,8 @@ internal static class RdbmsDecorator
                 _ => column.DataType.Name
             };
         }
+
+        return;
 
         static void InitColumnStereotype(StereotypePersistable stereotype)
         {
@@ -173,6 +174,8 @@ internal static class RdbmsDecorator
             stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.TextConstraints.PropertyId.MaxLength).Value = column.DataType.MaximumLength.ToString("D");
         }
 
+        return;
+
         static void InitTextConstraintStereotype(StereotypePersistable stereotype, Column column)
         {
             stereotype.Name = Constants.Stereotypes.Rdbms.TextConstraints.Name;
@@ -208,6 +211,7 @@ internal static class RdbmsDecorator
         var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.DecimalConstraints.DefinitionId, InitDecimalConstraintStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.Precision).Value = column.DataType.NumericPrecision.ToString();
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DecimalConstraints.PropertyId.Scale).Value = column.DataType.NumericScale.ToString();
+        return;
 
         static void InitDecimalConstraintStereotype(StereotypePersistable stereotype)
         {
@@ -228,6 +232,7 @@ internal static class RdbmsDecorator
 
         var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.DefaultConstraint.DefinitionId, InitDefaultConstraintStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.DefaultConstraint.PropertyId.Value).Value = $@"""{column.DefaultConstraint.Text}""";
+        return;
 
         static void InitDefaultConstraintStereotype(StereotypePersistable stereotype)
         {
@@ -253,6 +258,7 @@ internal static class RdbmsDecorator
         var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.ComputedValue.DefinitionId, InitComputedValueStereotype);
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.Sql).Value = column.ComputedText;
         stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.ComputedValue.PropertyId.Stored).Value = column.IsPersisted ? "true" : "false";
+        return;
 
 
         static void InitComputedValueStereotype(StereotypePersistable stereotype)
@@ -279,7 +285,7 @@ internal static class RdbmsDecorator
 			}
 		}
 
-		if (IsForeignKeyIndex(config, index))
+		if (IsForeignKeyIndex(index))
 		{
 			Console.WriteLine($"Skipping default foreign key index : { index.Name }");
 			return;
@@ -287,16 +293,17 @@ internal static class RdbmsDecorator
 
         var indexPersistable = modelSchemaHelper.GetOrCreateIndex(index, @class);
 
-        var indexValues = new Dictionary<string, string> 
+        var indexValues = new Dictionary<string, string?>
         {
-				{Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.Unique, index.IsUnique.ToString().ToLower() },
-		};
+            { Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.Unique, index.IsUnique.ToString().ToLower() }
+        };
+        
         if (index.HasFilter)
         {
             indexValues.Add(Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.Filter, "Custom");
 			indexValues.Add(Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.FilterCustomValue, index.FilterDefinition);
-
 		}
+        
 		modelSchemaHelper.UpdateStereoType(
             indexPersistable, 
             Constants.Stereotypes.Rdbms.Index.Settings.DefinitionId,
@@ -315,7 +322,6 @@ internal static class RdbmsDecorator
 		    }
 
 			modelSchemaHelper.CreateIndexColumn(indexColumn, indexPersistable, attribute);
-
 		}
     }
 
@@ -335,6 +341,8 @@ internal static class RdbmsDecorator
             paramStereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.StoredProcedureParameter.PropertyId.IsOutputParam).Value = sqlProcParam.IsOutputParameter.ToString().ToLower();
         }
 
+        return;
+
         static void InitStoredProcStereotype(StereotypePersistable stereotype)
         {
             stereotype.Name = Constants.Stereotypes.Rdbms.StoredProcedure.Name;
@@ -351,46 +359,32 @@ internal static class RdbmsDecorator
             stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.StoredProcedureParameter.PropertyId.IsOutputParam, prop => prop.Name = Constants.Stereotypes.Rdbms.StoredProcedureParameter.PropertyId.IsOutputParamName);
         }
     }
-	private static bool IsForeignKeyIndex(ImportConfiguration config, Index index)
-	{
-		if (index.Parent is Table table)
-		{
-			foreach (ForeignKey foreignKey in table.ForeignKeys)
-			{
-				var sourceColumns = foreignKey.Columns.Cast<ForeignKeyColumn>().Select(x => GetColumn(table, x.Name)).ToList();
-                if (sourceColumns.Count !=  index.IndexedColumns.Count)
-                {
-                    continue;
-                }
-                bool match = true;
-                for (int i = 0; i < sourceColumns.Count; i++)
-                {
-                    var sourceColumn = sourceColumns[i];
-					if (sourceColumn.Name != index.IndexedColumns[i].Name)
-					{
-                        match = false;
-						break;
-					}
-				}
-                if (match) 
-                {
-                    return true;
-                }
-			}
-		}
-		return false;
+	private static bool IsForeignKeyIndex(Index index)
+    {
+        if (index.Parent is not Table table)
+        {
+            return false;
+        }
+        
+        foreach (ForeignKey foreignKey in table.ForeignKeys)
+        {
+            var sourceColumns = foreignKey.Columns.Cast<ForeignKeyColumn>().Select(x => GetColumn(table, x.Name)).ToList();
+            if (sourceColumns.Count !=  index.IndexedColumns.Count)
+            {
+                continue;
+            }
+            var match = !sourceColumns.Where((sourceColumn, i) => sourceColumn?.Name != index.IndexedColumns[i].Name).Any();
+            if (match) 
+            {
+                return true;
+            }
+        }
+        
+        return false;
 	}
 
-	private static Column GetColumn(Table table, string columnName)
-	{
-		foreach (Column column in table.Columns)
-		{
-			if (column.Name == columnName)
-			{
-				return column;
-			}
-		}
-
-		return null;
-	}
+	private static Column? GetColumn(Table table, string columnName)
+    {
+        return table.Columns.Cast<Column>().FirstOrDefault(column => column.Name == columnName);
+    }
 }

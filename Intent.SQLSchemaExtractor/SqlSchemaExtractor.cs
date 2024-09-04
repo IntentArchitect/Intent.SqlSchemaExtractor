@@ -15,12 +15,11 @@ namespace Intent.SQLSchemaExtractor
     {
         private readonly Database _db;
         private readonly ImportConfiguration _config;
-        private readonly List<string> _tablesToIgnore = new List<string> { "sysdiagrams", "__MigrationHistory", "__EFMigrationsHistory" };
-        private readonly List<string> _viewsToIgnore = new List<string> { };
+        private readonly List<string> _tablesToIgnore = new() { "sysdiagrams", "__MigrationHistory", "__EFMigrationsHistory" };
+        private readonly List<string> _viewsToIgnore = new() { };
         private readonly HashSet<string> _tableViewsFilter;
-        private ModelSchemaHelper _modelSchemaHelper;
 
-        public string SchemaVersion { get; } = "2.0";
+        public string SchemaVersion => "2.0";
 
         public SqlSchemaExtractor(ImportConfiguration config, Database db)
         {
@@ -38,7 +37,7 @@ namespace Intent.SQLSchemaExtractor
         {
             var (fullPackagePath, packageName) = GetPackageLocationAndName(packageNameOrPath);
             var package = ModelSchemaHelper.GetOrCreateDomainPackage(fullPackagePath, packageName);
-            _modelSchemaHelper = new ModelSchemaHelper(_config, package, _db);
+            var modelSchemaHelper = new ModelSchemaHelper(_config, package, _db);
             var savedSchemaVersion = package.Metadata.FirstOrDefault(m => m.Key == "sql-import:schemaVersion")?.Value;
             if (savedSchemaVersion != SchemaVersion)
             {
@@ -47,26 +46,26 @@ namespace Intent.SQLSchemaExtractor
 
             package.IsExternalOld = false;
 
-            ApplyStereotypes(config, package);
+            ApplyStereotypes(package);
             if (_config.ExportTables())
             {
-                ProcessTables(config, package);
-                ProcessForeignKeys(config, package);
+                ProcessTables(config, modelSchemaHelper);
+                ProcessForeignKeys(modelSchemaHelper);
             }
 
             if (_config.ExportIndexes())
             {
-                ProcessIndexes(config, package);
+                ProcessIndexes(config, modelSchemaHelper);
             }
 
             if (_config.ExportViews())
             {
-                ProcessViews(config, package);
+                ProcessViews(config, modelSchemaHelper);
             }
 
             if (_config.ExportStoredProcedures())
             {
-                ProcessStoredProcedures(config, package);
+                ProcessStoredProcedures(config, modelSchemaHelper);
             }
 
             package.References ??= new List<PackageReferenceModel>();
@@ -75,7 +74,7 @@ namespace Intent.SQLSchemaExtractor
             return package;
         }
 
-        private void MigrateSchema(PackageModelPersistable package, string? oldFileVersion)
+        private static void MigrateSchema(PackageModelPersistable package, string? oldFileVersion)
         {
         }
 
@@ -87,7 +86,7 @@ namespace Intent.SQLSchemaExtractor
                 .ToArray();
         }
 
-        private static void ApplyStereotypes(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        private static void ApplyStereotypes(PackageModelPersistable package)
         {
             if (package.Stereotypes.Any(p => p.DefinitionId == Constants.Stereotypes.Rdbms.RelationalDatabase.DefinitionId))
             {
@@ -105,7 +104,7 @@ namespace Intent.SQLSchemaExtractor
         }
 
 
-        private void ProcessIndexes(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        private void ProcessIndexes(SchemaExtractorConfiguration config, ModelSchemaHelper modelSchemaHelper)
         {
             Console.WriteLine();
             Console.WriteLine("Indexes");
@@ -113,29 +112,30 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine();
 
             var filteredTables = GetFilteredTables();
-            foreach (Table table in filteredTables)
+            foreach (var table in filteredTables)
             {
-                var @class = _modelSchemaHelper.GetClass(table);
-
-                if (@class != null)
+                var @class = modelSchemaHelper.GetClass(table);
+                if (@class == null)
                 {
-                    foreach (Index tableIndex in table.Indexes)
+                    continue;
+                }
+                
+                foreach (Index tableIndex in table.Indexes)
+                {
+                    if (tableIndex.IsClustered)
                     {
-                        if (tableIndex.IsClustered)
-                        {
-                            continue;
-                        }
+                        continue;
+                    }
 
-                        foreach (var handler in config.OnIndexHandlers)
-                        {
-                            handler(_config, tableIndex, @class, _modelSchemaHelper);
-                        }
+                    foreach (var handler in config.OnIndexHandlers)
+                    {
+                        handler(_config, tableIndex, @class, modelSchemaHelper);
                     }
                 }
             }
         }
 
-        private void ProcessTables(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        private void ProcessTables(SchemaExtractorConfiguration config, ModelSchemaHelper modelSchemaHelper)
         {
             Console.WriteLine();
             Console.WriteLine("Tables");
@@ -146,9 +146,9 @@ namespace Intent.SQLSchemaExtractor
             var tableCount = filteredTables.Length;
             var tableNumber = 0;
 
-            foreach (Table table in filteredTables)
+            foreach (var table in filteredTables)
             {
-                var @class = _modelSchemaHelper.GetOrCreateClass(table);
+                var @class = modelSchemaHelper.GetOrCreateClass(table);
 
                 Console.WriteLine($"{table.Name} ({++tableNumber}/{tableCount})");
 
@@ -159,7 +159,7 @@ namespace Intent.SQLSchemaExtractor
 
                 foreach (Column col in table.Columns)
                 {
-                    var attribute = _modelSchemaHelper.GetOrCreateAttribute(col, @class);
+                    var attribute = modelSchemaHelper.GetOrCreateAttribute(col, @class);
 
                     var typeId = GetTypeId(col.DataType);
                     attribute.TypeReference.TypeId = typeId;
@@ -172,7 +172,7 @@ namespace Intent.SQLSchemaExtractor
             }
         }
 
-        private void ProcessForeignKeys(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        private void ProcessForeignKeys(ModelSchemaHelper modelSchemaHelper)
         {
             Console.WriteLine();
             Console.WriteLine("Foreign Keys");
@@ -180,11 +180,11 @@ namespace Intent.SQLSchemaExtractor
             Console.WriteLine();
 
             var filteredTables = GetFilteredTables();
-            foreach (Table table in filteredTables)
+            foreach (var table in filteredTables)
             {
                 foreach (ForeignKey foreignKey in table.ForeignKeys)
                 {
-                    var association = _modelSchemaHelper.GetOrCreateAssociation(foreignKey);
+                    var association = modelSchemaHelper.GetOrCreateAssociation(foreignKey);
                 }
             }
         }
@@ -193,10 +193,14 @@ namespace Intent.SQLSchemaExtractor
         private View[] GetFilteredViews()
         {
             return _cachedFilteredViews ??= _db.Views.OfType<View>()
-                .Where(view => (view.Schema is not "sys" and not "INFORMATION_SCHEMA") && !_viewsToIgnore.Contains(view.Name) && _config.ExportSchema(view.Schema) && IncludeTableView(view.Name)).ToArray();
+                .Where(view => view.Schema is not "sys" and not "INFORMATION_SCHEMA" && 
+                               !_viewsToIgnore.Contains(view.Name) && 
+                               _config.ExportSchema(view.Schema) && 
+                               IncludeTableView(view.Name))
+                .ToArray();
         }
 
-        private void ProcessViews(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        private void ProcessViews(SchemaExtractorConfiguration config, ModelSchemaHelper modelSchemaHelper)
         {
             Console.WriteLine();
             Console.WriteLine("Views");
@@ -206,9 +210,9 @@ namespace Intent.SQLSchemaExtractor
             var filteredViews = GetFilteredViews();
             var viewsCount = filteredViews.Length;
             var viewNumber = 0;
-            foreach (View view in filteredViews)
+            foreach (var view in filteredViews)
             {
-                var @class = _modelSchemaHelper.GetOrCreateClass(view);
+                var @class = modelSchemaHelper.GetOrCreateClass(view);
 
                 Console.WriteLine($"{view.Name} ({++viewNumber}/{viewsCount})");
 
@@ -219,7 +223,7 @@ namespace Intent.SQLSchemaExtractor
 
                 foreach (Column col in view.Columns)
                 {
-                    var attribute = _modelSchemaHelper.GetOrCreateAttribute(col, @class);
+                    var attribute = modelSchemaHelper.GetOrCreateAttribute(col, @class);
 
                     var typeId = GetTypeId(col.DataType);
                     attribute.TypeReference.TypeId = typeId;
@@ -238,26 +242,26 @@ namespace Intent.SQLSchemaExtractor
         }
 
 
-        private void ProcessStoredProcedures(SchemaExtractorConfiguration config, PackageModelPersistable package)
+        private void ProcessStoredProcedures(SchemaExtractorConfiguration config, ModelSchemaHelper modelSchemaHelper)
         {
             Console.WriteLine();
             Console.WriteLine("Stored Procedures");
             Console.WriteLine("=================");
             Console.WriteLine();
 
-            var filteredStoredProcs = GetFilteredStoredProcedures();
-            var storedProcsCount = filteredStoredProcs.Length;
-            var storedProcsNumber = 0;
-            foreach (StoredProcedure storedProc in filteredStoredProcs)
+            var filteredStoredProcedures = GetFilteredStoredProcedures();
+            var storedProceduresCount = filteredStoredProcedures.Length;
+            var storedProceduresNumber = 0;
+            foreach (var storedProc in filteredStoredProcedures)
             {
                 if (!_config.ExportSchema(storedProc.Schema))
                 {
                     continue;
                 }
 
-                Console.WriteLine($"{storedProc.Name} ({++storedProcsNumber}/{storedProcsCount})");
+                Console.WriteLine($"{storedProc.Name} ({++storedProceduresNumber}/{storedProceduresCount})");
 
-                var modelStoredProcedure = _modelSchemaHelper.GetOrCreateStoredProcedure(storedProc);
+                var modelStoredProcedure = modelSchemaHelper.GetOrCreateStoredProcedure(storedProc);
 
                 var tableId = GetTableIdInResultSet(storedProc);
                 if (tableId is not null)
@@ -279,7 +283,7 @@ namespace Intent.SQLSchemaExtractor
 
                 foreach (StoredProcedureParameter procParameter in storedProc.Parameters)
                 {
-                    var param = _modelSchemaHelper.GetOrCreateStoredProcedureParameter(procParameter, modelStoredProcedure);
+                    var param = modelSchemaHelper.GetOrCreateStoredProcedureParameter(procParameter, modelStoredProcedure);
                     var typeId = GetTypeId(procParameter.DataType);
                     param.TypeReference.TypeId = typeId;
                 }
@@ -291,9 +295,9 @@ namespace Intent.SQLSchemaExtractor
             }
         }
 
-        private string GetTableIdInResultSet(StoredProcedure storedProc)
+        private string? GetTableIdInResultSet(StoredProcedure storedProc)
         {
-            DataSet describeResults = null;
+            DataSet describeResults;
             try
             {
                 describeResults = _db.ExecuteWithResults($@"
@@ -314,8 +318,8 @@ EXEC sp_describe_first_result_set
 
             var dataTable = describeResults.Tables[0];
 
-            string sourceSchema = null;
-            string sourceTable = null;
+            string? sourceSchema = null;
+            string? sourceTable = null;
 
             if (!dataTable.Columns.Contains("source_schema") || !dataTable.Columns.Contains("source_table"))
             {
@@ -350,12 +354,7 @@ EXEC sp_describe_first_result_set
             }
 
             var tableId = tableIdResults.Tables[0].Rows[0]["TableID"].ToString();
-            if (string.IsNullOrWhiteSpace(tableId))
-            {
-                return null;
-            }
-
-            return tableId;
+            return string.IsNullOrWhiteSpace(tableId) ? null : tableId;
         }
 
         private static (string fullPackagePath, string packageName) GetPackageLocationAndName(string packageNameOrPath)
@@ -386,7 +385,7 @@ EXEC sp_describe_first_result_set
         }
 
 
-        private static string GetTypeId(DataType dataType)
+        private static string? GetTypeId(DataType dataType)
         {
             switch (dataType.SqlDataType)
             {

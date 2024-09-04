@@ -13,7 +13,7 @@ public static class PersistableExtensions
         this ElementPersistable element,
         string stereotypeId,
         string propertyId,
-        out string value)
+        out string? value)
     {
         var stereotype = element.Stereotypes.SingleOrDefault(x => x.DefinitionId == stereotypeId);
         if (stereotype == null)
@@ -35,7 +35,7 @@ public static class PersistableExtensions
 
     public static StereotypePersistable GetOrCreateStereotype(this ElementPersistable element,
         string stereotypeDefinitionId,
-        Action<StereotypePersistable> initAction = null)
+        Action<StereotypePersistable>? initAction = null)
     {
         element.Stereotypes ??= new List<StereotypePersistable>();
 
@@ -59,7 +59,7 @@ public static class PersistableExtensions
 
     public static StereotypePersistable GetOrCreateStereotype(this AssociationEndPersistable element,
         string stereotypeDefinitionId,
-        Action<StereotypePersistable> initAction = null)
+        Action<StereotypePersistable>? initAction = null)
     {
         element.Stereotypes ??= new List<StereotypePersistable>();
 
@@ -83,7 +83,7 @@ public static class PersistableExtensions
 
     public static StereotypePropertyPersistable GetOrCreateProperty(this StereotypePersistable stereotype,
         string propertyId,
-        Action<StereotypePropertyPersistable> initAction = null)
+        Action<StereotypePropertyPersistable>? initAction = null)
     {
         stereotype.Properties ??= new List<StereotypePropertyPersistable>();
 
