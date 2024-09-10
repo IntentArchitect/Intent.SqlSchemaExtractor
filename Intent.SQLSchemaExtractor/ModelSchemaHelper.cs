@@ -119,12 +119,12 @@ public class ModelSchemaHelper
         }
     }
 
-    public static ElementPersistable GetOrCreateAttribute(Column column, ElementPersistable @class)
+    public ElementPersistable GetOrCreateAttribute(Column column, ElementPersistable @class)
     {
         return InternalGetOrCreateAttribute(GetIdentity(column, @class), column.Nullable, @class);
     }
 
-    internal static ElementPersistable GetOrCreateAttribute(ResultSetColumn column, ElementPersistable dataContract)
+    internal ElementPersistable GetOrCreateAttribute(ResultSetColumn column, ElementPersistable dataContract)
     {
         return InternalGetOrCreateAttribute(GetIdentity(column, dataContract), column.IsNullable, dataContract);
     }
@@ -458,12 +458,10 @@ public class ModelSchemaHelper
     {
         var identity = GetIdentity(parameter);
 
-        var element = storedProcedure.ChildElements.FirstOrDefault(c =>
-            c.ExternalReference == identity.ExternalReference && c.SpecializationTypeId == StoredProcedureParameterType.Id);
-        if (element is null)
-        {
-            element = storedProcedure.ChildElements.FirstOrDefault(c => c.Name == identity.Name && c.SpecializationTypeId == StoredProcedureParameterType.Id);
-        }
+        var element = storedProcedure.ChildElements
+                          .FirstOrDefault(c => c.ExternalReference == identity.ExternalReference && c.SpecializationTypeId == StoredProcedureParameterType.Id) ??
+                      storedProcedure.ChildElements
+                          .FirstOrDefault(c => c.Name == identity.Name && c.SpecializationTypeId == StoredProcedureParameterType.Id);
 
         if (element is null)
         {
@@ -521,7 +519,7 @@ public class ModelSchemaHelper
             Mapping = mapping,
             ParentFolderId = modelIndex.Id,
             PackageId = _package.Id,
-            PackageName = _package.Name,
+            PackageName = _package.Name
         };
 
         columnIndex.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.Index.IndexColumn.Settings.DefinitionId, (stereotype) =>
@@ -596,6 +594,28 @@ public class ModelSchemaHelper
 
         element.ExternalReference = identity.ExternalReference;
         return element;
+    }
+
+    public ElementPersistable GetOrCreateDataContract(UserDefinedTableType userDefinedTableType)
+    {
+        var identity = GetIdentity(userDefinedTableType);
+        var dataContract = _package.Classes.FirstOrDefault(x => x.ExternalReference == identity.ExternalReference);
+        if (dataContract is null)
+        {
+            var dataContractName = $"{userDefinedTableType.Name.ToPascalCase()}";
+            var folder = GetOrCreateFolder(userDefinedTableType.Schema);
+            _package.AddElement(dataContract = new ElementPersistable
+            {
+                Id = Guid.NewGuid().ToString(),
+                ParentFolderId = folder.Id,
+                Name = dataContractName,
+                SpecializationTypeId = DataContract.Id,
+                SpecializationType = DataContract.Name,
+                ExternalReference = identity.ExternalReference
+            });
+        }
+        
+        return dataContract;
     }
 
     internal ElementPersistable GetOrCreateDataContractResponse(StoredProcedure storedProcedure)
@@ -725,6 +745,13 @@ public class ModelSchemaHelper
             GetStoredProcedureName(storedProcedure)
         );
     }
+    
+    private static ElementIdentity GetIdentity(UserDefinedTableType userDefinedTableType)
+    {
+        return new ElementIdentity(
+            $"{userDefinedTableType.Schema}.{userDefinedTableType.Name}",
+            NormalizeTableName(userDefinedTableType.Name));
+    }
 
     private static AssociationIdentity GetIdentity(ForeignKey foreignKey)
     {
@@ -799,6 +826,7 @@ public class ModelSchemaHelper
         {
             Table table => DeDuplicate(NormalizeColumnName(column.Name, table.Name), @class.Name),
             View view => DeDuplicate(NormalizeColumnName(column.Name, view.Name), @class.Name),
+            UserDefinedTableType table => DeDuplicate(NormalizeColumnName(column.Name, table.Name), @class.Name),
             _ => throw new Exception($"Unknown parent type : {column.Parent}")
         };
     }
@@ -814,6 +842,7 @@ public class ModelSchemaHelper
         {
             Table table => $"[{table.Schema}].[{table.Name}].[{column.Name}]".ToLower(),
             View view => $"[{view.Schema}].[{view.Name}].[{column.Name}]".ToLower(),
+            UserDefinedTableType table => $"[{table.Schema}].[{table.Name}].[{column.Name}".ToLower(),
             _ => throw new Exception($"Unknown parent type : {column.Parent}")
         };
     }

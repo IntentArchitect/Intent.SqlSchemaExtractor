@@ -27,11 +27,6 @@ public class SqlSchemaExtractor
         _tableViewsFilter = new HashSet<string>(_config.GetFilteredTableViewList(), StringComparer.InvariantCultureIgnoreCase);
     }
 
-    private bool IncludeTableView(string tableOrViewName)
-    {
-        return _tableViewsFilter.Count == 0 || _tableViewsFilter.Contains(tableOrViewName);
-    }
-
     public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtractorConfiguration config)
     {
         var (fullPackagePath, packageName) = GetPackageLocationAndName(packageNameOrPath);
@@ -64,6 +59,7 @@ public class SqlSchemaExtractor
 
         if (_config.ExportStoredProcedures())
         {
+            ProcessUserDefinedTableTypes(config, modelSchemaHelper);
             ProcessStoredProcedures(config, modelSchemaHelper);
         }
 
@@ -75,15 +71,6 @@ public class SqlSchemaExtractor
 
     private static void MigrateSchema(PackageModelPersistable package, string? oldFileVersion)
     {
-    }
-
-    private Table[]? _cachedFilteredTables;
-
-    private Table[] GetFilteredTables()
-    {
-        return _cachedFilteredTables ??= _db.Tables.OfType<Table>()
-            .Where(table => !_tablesToIgnore.Contains(table.Name) && _config.ExportSchema(table.Schema) && IncludeTableView(table.Name))
-            .ToArray();
     }
 
     private static void ApplyStereotypes(PackageModelPersistable package)
@@ -159,7 +146,7 @@ public class SqlSchemaExtractor
 
             foreach (Column col in table.Columns)
             {
-                var attribute = ModelSchemaHelper.GetOrCreateAttribute(col, @class);
+                var attribute = modelSchemaHelper.GetOrCreateAttribute(col, @class);
 
                 var typeId = GetTypeId(col.DataType);
                 attribute.TypeReference.TypeId = typeId;
@@ -189,18 +176,6 @@ public class SqlSchemaExtractor
         }
     }
 
-    private View[]? _cachedFilteredViews;
-
-    private View[] GetFilteredViews()
-    {
-        return _cachedFilteredViews ??= _db.Views.OfType<View>()
-            .Where(view => view.Schema is not "sys" and not "INFORMATION_SCHEMA" &&
-                           !_viewsToIgnore.Contains(view.Name) &&
-                           _config.ExportSchema(view.Schema) &&
-                           IncludeTableView(view.Name))
-            .ToArray();
-    }
-
     private void ProcessViews(SchemaExtractorConfiguration config, ModelSchemaHelper modelSchemaHelper)
     {
         Console.WriteLine();
@@ -224,7 +199,7 @@ public class SqlSchemaExtractor
 
             foreach (Column col in view.Columns)
             {
-                var attribute = ModelSchemaHelper.GetOrCreateAttribute(col, @class);
+                var attribute = modelSchemaHelper.GetOrCreateAttribute(col, @class);
 
                 var typeId = GetTypeId(col.DataType);
                 attribute.TypeReference.TypeId = typeId;
@@ -237,11 +212,33 @@ public class SqlSchemaExtractor
         }
     }
 
-    private StoredProcedure[] GetFilteredStoredProcedures()
+    private void ProcessUserDefinedTableTypes(SchemaExtractorConfiguration config, ModelSchemaHelper modelSchemaHelper)
     {
-        return _db.StoredProcedures.OfType<StoredProcedure>().Where(storedProc => storedProc.Schema is not "sys" && _config.ExportSchema(storedProc.Schema)).ToArray();
-    }
+        Console.WriteLine();
+        Console.WriteLine("User Defined Table Types");
+        Console.WriteLine("=======================");
+        Console.WriteLine();
 
+        var filteredUserDefinedTableTypes = GetFilteredUserDefinedTableTypes();
+        var userDefinedTableTypesCount = filteredUserDefinedTableTypes.Length;
+        var userDefinedTableTypesNumber = 0;
+        foreach (var userDefinedTableType in filteredUserDefinedTableTypes)
+        {
+            if (!_config.ExportSchema(userDefinedTableType.Schema))
+            {
+                continue;
+            }
+
+            Console.WriteLine($"{userDefinedTableType.Name} ({++userDefinedTableTypesNumber}/{userDefinedTableTypesCount})");
+
+            var modelDataContract = modelSchemaHelper.GetOrCreateDataContract(userDefinedTableType);
+            foreach (Column column in userDefinedTableType.Columns)
+            {
+                var attr = modelSchemaHelper.GetOrCreateAttribute(column, modelDataContract);
+                attr.TypeReference.TypeId = GetTypeId(column.DataType);
+            }
+        }
+    }
 
     private void ProcessStoredProcedures(SchemaExtractorConfiguration config, ModelSchemaHelper modelSchemaHelper)
     {
@@ -297,7 +294,7 @@ public class SqlSchemaExtractor
                 
                 foreach (var column in resultSet.Columns)
                 {
-                    var attribute = ModelSchemaHelper.GetOrCreateAttribute(column, dataContract);
+                    var attribute = modelSchemaHelper.GetOrCreateAttribute(column, dataContract);
             
                     var typeId = GetTypeId(column.SqlDataType);
                     attribute.TypeReference.TypeId = typeId;
@@ -307,7 +304,9 @@ public class SqlSchemaExtractor
             foreach (StoredProcedureParameter procParameter in storedProc.Parameters)
             {
                 var param = modelSchemaHelper.GetOrCreateStoredProcedureParameter(procParameter, modelStoredProcedure);
-                var typeId = GetTypeId(procParameter.DataType);
+                var typeId = procParameter.DataType.SqlDataType is SqlDataType.UserDefinedTableType
+                    ? modelSchemaHelper.GetOrCreateDataContract(GetFilteredUserDefinedTableTypes().First(p=>p.Schema==storedProc.Schema && p.Name==procParameter.DataType.Name)).Id
+                    : GetTypeId(procParameter.DataType);
                 param.TypeReference.TypeId = typeId;
             }
 
@@ -316,6 +315,49 @@ public class SqlSchemaExtractor
                 handler(storedProc, modelStoredProcedure);
             }
         }
+    }
+    
+    private Table[]? _cachedFilteredTables;
+
+    private Table[] GetFilteredTables()
+    {
+        return _cachedFilteredTables ??= _db.Tables.OfType<Table>()
+            .Where(table => !_tablesToIgnore.Contains(table.Name) && _config.ExportSchema(table.Schema) && IncludeTableView(table.Name))
+            .ToArray();
+    }
+    
+    private View[]? _cachedFilteredViews;
+
+    private View[] GetFilteredViews()
+    {
+        return _cachedFilteredViews ??= _db.Views.OfType<View>()
+            .Where(view => view.Schema is not "sys" and not "INFORMATION_SCHEMA" &&
+                           !_viewsToIgnore.Contains(view.Name) &&
+                           _config.ExportSchema(view.Schema) &&
+                           IncludeTableView(view.Name))
+            .ToArray();
+    }
+    
+    private bool IncludeTableView(string tableOrViewName)
+    {
+        return _tableViewsFilter.Count == 0 || _tableViewsFilter.Contains(tableOrViewName);
+    }
+
+    private StoredProcedure[]? _cachedFilteredStoredProcedures;
+    private StoredProcedure[] GetFilteredStoredProcedures()
+    {
+        return _cachedFilteredStoredProcedures ??= _db.StoredProcedures.OfType<StoredProcedure>()
+            .Where(storedProc => storedProc.Schema is not "sys" && _config.ExportSchema(storedProc.Schema))
+            .ToArray();
+    }
+    
+    private UserDefinedTableType[]? _cachedFilteredUserDefinedTableTypes;
+
+    private UserDefinedTableType[] GetFilteredUserDefinedTableTypes()
+    {
+        return _cachedFilteredUserDefinedTableTypes ??= _db.UserDefinedTableTypes.OfType<UserDefinedTableType>()
+            .Where(type => type.Schema is not "sys" && _config.ExportSchema(type.Schema))
+            .ToArray();
     }
 
     private static (string fullPackagePath, string packageName) GetPackageLocationAndName(string packageNameOrPath)
@@ -349,7 +391,6 @@ public class SqlSchemaExtractor
     {
         return GetTypeId(dataType.SqlDataType);
     }
-    
 
     private static string? GetTypeId(SqlDataType dataType)
     {
@@ -409,9 +450,9 @@ public class SqlSchemaExtractor
             case SqlDataType.Geometry:
             case SqlDataType.Geography:
             case SqlDataType.HierarchyId:
+            case SqlDataType.Json:
                 Logging.LogWarning($"Unsupported column type: {dataType.ToString()}");
                 return null;
-            case SqlDataType.Json:
             default:
                 Logging.LogWarning($"Unknown column type: {dataType.ToString()}");
                 return null;
