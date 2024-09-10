@@ -19,6 +19,7 @@ public class ModelSchemaHelper
     internal static readonly SpecializationType RepositoryType = new("Repository", "96ffceb2-a70a-4b69-869b-0df436c470c3");
     internal static readonly SpecializationType FolderType = new("Folder", "4d95d53a-8855-4f35-aa82-e312643f5c5f");
     internal static readonly SpecializationType ClassType = new("Class", "04e12b51-ed12-42a3-9667-a6aa81bb6d10");
+    internal static readonly SpecializationType DataContract = new("Data Contract", "4464fabe-c59e-4d90-81fc-c9245bdd1afd");
     internal static readonly SpecializationType AttributeType = new("Attribute", "0090fb93-483e-41af-a11d-5ad2dc796adf");
     internal static readonly SpecializationType IndexType = new("Index", "436e3afe-b4ef-481c-b803-0d1e7d263561");
     internal static readonly SpecializationType StoredProcedureType = new("Stored Procedure", "575edd35-9438-406d-b0a7-b99d6f29b560");
@@ -29,7 +30,7 @@ public class ModelSchemaHelper
     private readonly ImportConfiguration _config;
     private readonly PackageModelPersistable _package;
     private readonly Database _db;
-    private Dictionary<string, ConflictingTable> _conflictingTableNames = new Dictionary<string, ConflictingTable>();
+    private Dictionary<string, ConflictingTable> _conflictingTableNames = new();
 
     #region ConflictingTable Class
 
@@ -54,7 +55,7 @@ public class ModelSchemaHelper
         internal Table Table { get; }
         internal bool DifferentSchemas { get; set; }
         internal bool UniqueIdentifier { get; set; }
-    };
+    }
 
     #endregion
 
@@ -120,12 +121,20 @@ public class ModelSchemaHelper
 
     public ElementPersistable GetOrCreateAttribute(Column column, ElementPersistable @class)
     {
-        var identity = GetIdentity(column, @class);
+        return InternalGetOrCreateAttribute(GetIdentity(column, @class), column.Nullable, @class);
+    }
 
-        var element = @class.ChildElements.SingleOrDefault(x => x.ExternalReference == identity.ExternalReference && x.IsAttribute());
+    internal ElementPersistable GetOrCreateAttribute(ResultSetColumn column, ElementPersistable dataContract)
+    {
+        return InternalGetOrCreateAttribute(GetIdentity(column, dataContract), column.IsNullable, dataContract);
+    }
+    
+    private static ElementPersistable InternalGetOrCreateAttribute(ElementIdentity elementIdentity, bool isNullable, ElementPersistable @class)
+    {
+        var element = @class.ChildElements.SingleOrDefault(x => x.ExternalReference == elementIdentity.ExternalReference && x.IsAttribute());
         if (element is null)
         {
-            element = @class.ChildElements.SingleOrDefault(x => x.Name == identity.Name && x.IsAttribute());
+            element = @class.ChildElements.SingleOrDefault(x => x.Name == elementIdentity.Name && x.IsAttribute());
         }
 
         if (element is null)
@@ -133,23 +142,23 @@ public class ModelSchemaHelper
             @class.ChildElements.Add(element = new ElementPersistable
             {
                 Id = Guid.NewGuid().ToString(),
-                Name = identity.Name,
+                Name = elementIdentity.Name,
                 SpecializationTypeId = AttributeType.Id,
                 SpecializationType = AttributeType.Name,
-                Stereotypes = new List<StereotypePersistable>(),
+                Stereotypes = [],
                 TypeReference = new TypeReferencePersistable()
                 {
                     Id = Guid.NewGuid().ToString(),
-                    IsNullable = column.Nullable,
+                    IsNullable = isNullable,
                     IsCollection = false,
-                    Stereotypes = new List<StereotypePersistable>(),
-                    GenericTypeParameters = new List<TypeReferencePersistable>()
+                    Stereotypes = [],
+                    GenericTypeParameters = []
                 },
-                ExternalReference = identity.ExternalReference
+                ExternalReference = elementIdentity.ExternalReference
             });
         }
 
-        element.ExternalReference = identity.ExternalReference;
+        element.ExternalReference = elementIdentity.ExternalReference;
         return element;
     }
 
@@ -168,7 +177,7 @@ public class ModelSchemaHelper
                 Name = identity.Name,
                 SpecializationTypeId = IndexType.Id,
                 SpecializationType = IndexType.Name,
-                Stereotypes = new List<StereotypePersistable>(),
+                Stereotypes = [],
                 IsMapped = true,
                 Mapping = new MappingModelPersistable
                 {
@@ -176,13 +185,13 @@ public class ModelSchemaHelper
                     MappingSettingsId = ColumnMappingSettingsId,
                     MetadataId = DomainMetadataId,
                     AutoSyncTypeReference = false,
-                    Path = new List<MappedPathTargetPersistable>
-                    {
-                        new()
+                    Path =
+                    [
+                        new MappedPathTargetPersistable
                         {
                             Id = @class.Id, Name = @class.Name, Type = ElementType.Element, Specialization = @class.SpecializationType
                         }
-                    }
+                    ]
                 },
                 ParentFolderId = @class.Id,
                 PackageId = @class.PackageId,
@@ -301,7 +310,7 @@ public class ModelSchemaHelper
                 ExternalReference = identity.ExternalReference,
                 AssociationTypeId = AssociationType.Id,
                 AssociationType = AssociationType.Name,
-                TargetEnd = new AssociationEndPersistable()
+                TargetEnd = new AssociationEndPersistable
                 {
                     //Keep this the same as association Id
                     Id = associationId,
@@ -314,7 +323,7 @@ public class ModelSchemaHelper
                         IsNullable = sourceColumns.Any(x => x.Nullable),
                         IsCollection = false
                     },
-                    Stereotypes = new List<StereotypePersistable>()
+                    Stereotypes = []
                 },
                 SourceEnd = new AssociationEndPersistable
                 {
@@ -327,7 +336,7 @@ public class ModelSchemaHelper
                         IsNullable = false,
                         IsCollection = !(sourcePKs.Length == sourceColumns.Count && sourceColumns.All(x => sourcePKs.Any(pk => pk == x.Name)))
                     },
-                    Stereotypes = new List<StereotypePersistable>()
+                    Stereotypes = []
                 }
             };
             var manuallyRemodeled = false;
@@ -435,7 +444,7 @@ public class ModelSchemaHelper
                 Name = NormalizeStoredProcName(storedProcedure.Name),
                 SpecializationTypeId = StoredProcedureType.Id,
                 SpecializationType = StoredProcedureType.Name,
-                Stereotypes = new List<StereotypePersistable>(),
+                Stereotypes = [],
                 TypeReference = null,
                 ExternalReference = identity.Name
             });
@@ -464,14 +473,14 @@ public class ModelSchemaHelper
                 Name = identity.Name,
                 SpecializationTypeId = StoredProcedureParameterType.Id,
                 SpecializationType = StoredProcedureParameterType.Name,
-                Stereotypes = new List<StereotypePersistable>(),
+                Stereotypes = [],
                 TypeReference = new TypeReferencePersistable
                 {
                     Id = Guid.NewGuid().ToString(),
                     IsNullable = false,
                     IsCollection = false,
-                    Stereotypes = new List<StereotypePersistable>(),
-                    GenericTypeParameters = new List<TypeReferencePersistable>()
+                    Stereotypes = [],
+                    GenericTypeParameters = []
                 },
                 ExternalReference = identity.ExternalReference
             });
@@ -492,13 +501,13 @@ public class ModelSchemaHelper
                 MappingSettingsId = ColumnMappingSettingsId,
                 MetadataId = DomainMetadataId,
                 AutoSyncTypeReference = false,
-                Path = new List<MappedPathTargetPersistable>
-                {
-                    new()
+                Path =
+                [
+                    new MappedPathTargetPersistable
                     {
                         Id = attribute.Id, Name = attribute.Name, Type = ElementType.Element, Specialization = attribute.SpecializationType
                     }
-                }
+                ]
             };
         }
 
@@ -589,6 +598,32 @@ public class ModelSchemaHelper
         return element;
     }
 
+    internal ElementPersistable GetOrCreateDataContractResponse(ResultSetColumn[] resultSetColumns, StoredProcedure storedProcedure)
+    {
+        var identity = $"{GetIdentity(storedProcedure).ExternalReference}.Response";
+        var dataContract = _package.Classes.FirstOrDefault(x => x.ExternalReference == identity);
+        if (dataContract is null)
+        {
+            var dataContractName = $"{storedProcedure.Name.ToPascalCase()}Response";
+            var folder = GetOrCreateFolder(storedProcedure.Schema);
+            _package.AddElement(dataContract = new ElementPersistable
+            {
+                Id = Guid.NewGuid().ToString(),
+                ParentFolderId = folder.Id,
+                Name = dataContractName,
+                SpecializationTypeId = DataContract.Id,
+                SpecializationType = DataContract.Name,
+                ExternalReference = identity
+            });
+        }
+
+        foreach (var column in resultSetColumns)
+        {
+            var attribute = GetOrCreateAttribute(column, dataContract);
+        }
+        
+        return dataContract;
+    }
 
     private static void AddSchemaStereotype(ElementPersistable folder, string schemaName)
     {
@@ -672,10 +707,18 @@ public class ModelSchemaHelper
         return NormalizeStoredProcParameterName(parameter.Name);
     }
 
-    private ElementIdentity GetIdentity(Column column, ElementPersistable @class)
+    private static ElementIdentity GetIdentity(Column column, ElementPersistable @class)
     {
         return new ElementIdentity(
             GetAttributeExternal(column),
+            GetAttributeName(column, @class)
+        );
+    }
+    
+    private static ElementIdentity GetIdentity(ResultSetColumn column, ElementPersistable @class)
+    {
+        return new ElementIdentity(
+            GetAttributeExternal(column, @class),
             GetAttributeName(column, @class)
         );
     }
@@ -749,13 +792,13 @@ public class ModelSchemaHelper
         return GetClassExternal(table.Schema, table.Name);
     }
 
-    private string GetClassExternal(string schema, string name)
+    private static string GetClassExternal(string schema, string name)
     {
         return $"[{schema}].[{name}]".ToLower();
     }
 
 
-    private string GetAttributeName(Column column, ElementPersistable @class)
+    private static string GetAttributeName(Column column, ElementPersistable @class)
     {
         return column.Parent switch
         {
@@ -763,6 +806,11 @@ public class ModelSchemaHelper
             View view => DeDuplicate(NormalizeColumnName(column.Name, view.Name), @class.Name),
             _ => throw new Exception($"Unknown parent type : {column.Parent}")
         };
+    }
+    
+    private static string GetAttributeName(ResultSetColumn column, ElementPersistable @class)
+    {
+        return DeDuplicate(NormalizeColumnName(column.Name, null), @class.Name);
     }
 
     private static string GetAttributeExternal(Column column)
@@ -774,8 +822,13 @@ public class ModelSchemaHelper
             _ => throw new Exception($"Unknown parent type : {column.Parent}")
         };
     }
+    
+    private static string GetAttributeExternal(ResultSetColumn column, ElementPersistable @class)
+    {
+        return $"[{@class.ExternalReference}].[{column.Name}]".ToLower();
+    }
 
-    private static string NormalizeColumnName(string colName, string tableOrViewName)
+    private static string NormalizeColumnName(string colName, string? tableOrViewName)
     {
         var normalized = colName != tableOrViewName ? colName : colName + "Value";
         normalized = RemoveInvalidCSharpCharacter(normalized);
@@ -822,6 +875,8 @@ public class ModelSchemaHelper
                 .Replace("\\", "")
                 .Replace("/", "")
                 .Replace("_", "")
+                .Replace("-", "")
+                .Replace("|", "")
             ;
     }
 
@@ -892,31 +947,33 @@ public class ModelSchemaHelper
         var unqiueNames = new Dictionary<string, List<ConflictingTable>>();
         foreach (Table table in _db.Tables)
         {
-            string className = GetClassName(table);
+            var className = GetClassName(table);
             if (unqiueNames.ContainsKey(className))
             {
-                bool differentSchemas = true;
-                bool unqiueIdentifier = true;
+                var differentSchemas = true;
+                var unqiueIdentifier = true;
                 var otherTables = unqiueNames[className];
                 foreach (var entry in otherTables)
                 {
-                    if (entry.Table.Schema == table.Schema)
+                    if (entry.Table.Schema != table.Schema)
                     {
-                        entry.DifferentSchemas = false;
-                        differentSchemas = false;
-                        if (NormalizeTableName(entry.Table.Name) == NormalizeTableName(table.Name))
-                        {
-                            entry.UniqueIdentifier = false;
-                            unqiueIdentifier = false;
-                        }
+                        continue;
                     }
+                    entry.DifferentSchemas = false;
+                    differentSchemas = false;
+                    if (NormalizeTableName(entry.Table.Name) != NormalizeTableName(table.Name))
+                    {
+                        continue;
+                    }
+                    entry.UniqueIdentifier = false;
+                    unqiueIdentifier = false;
                 }
 
                 otherTables.Add(new ConflictingTable(table, differentSchemas, unqiueIdentifier));
             }
             else
             {
-                unqiueNames.Add(className, new List<ConflictingTable> { new ConflictingTable(table, true) });
+                unqiueNames.Add(className, [new ConflictingTable(table, true)]);
             }
         }
 
