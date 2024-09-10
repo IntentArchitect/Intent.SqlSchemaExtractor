@@ -14,8 +14,8 @@ public class SqlSchemaExtractor
 {
     private readonly Database _db;
     private readonly ImportConfiguration _config;
-    private readonly List<string> _tablesToIgnore = new() { "sysdiagrams", "__MigrationHistory", "__EFMigrationsHistory" };
-    private readonly List<string> _viewsToIgnore = new() { };
+    private readonly List<string> _tablesToIgnore = ["sysdiagrams", "__MigrationHistory", "__EFMigrationsHistory"];
+    private readonly List<string> _viewsToIgnore = [];
     private readonly HashSet<string> _tableViewsFilter;
 
     public string SchemaVersion => "2.0";
@@ -27,7 +27,7 @@ public class SqlSchemaExtractor
         _tableViewsFilter = new HashSet<string>(_config.GetFilteredTableViewList(), StringComparer.InvariantCultureIgnoreCase);
     }
 
-    public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtractorConfiguration config)
+    public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtractorHandlerExtensions handlerExtensions)
     {
         var (fullPackagePath, packageName) = GetPackageLocationAndName(packageNameOrPath);
         var package = ModelSchemaHelper.GetOrCreateDomainPackage(fullPackagePath, packageName);
@@ -43,27 +43,27 @@ public class SqlSchemaExtractor
         ApplyStereotypes(package);
         if (_config.ExportTables())
         {
-            ProcessTables(config, modelSchemaHelper);
+            ProcessTables(handlerExtensions, modelSchemaHelper);
             ProcessForeignKeys(modelSchemaHelper);
         }
 
         if (_config.ExportIndexes())
         {
-            ProcessIndexes(config, modelSchemaHelper);
+            ProcessIndexes(handlerExtensions, modelSchemaHelper);
         }
 
         if (_config.ExportViews())
         {
-            ProcessViews(config, modelSchemaHelper);
+            ProcessViews(handlerExtensions, modelSchemaHelper);
         }
 
         if (_config.ExportStoredProcedures())
         {
-            ProcessUserDefinedTableTypes(config, modelSchemaHelper);
-            ProcessStoredProcedures(config, modelSchemaHelper);
+            ProcessUserDefinedTableTypes(modelSchemaHelper);
+            ProcessStoredProcedures(handlerExtensions, modelSchemaHelper);
         }
 
-        package.References ??= new List<PackageReferenceModel>();
+        package.References ??= [];
         package.AddMetadata("sql-import:schemaVersion", SchemaVersion);
 
         return package;
@@ -91,7 +91,7 @@ public class SqlSchemaExtractor
     }
 
 
-    private void ProcessIndexes(SchemaExtractorConfiguration config, ModelSchemaHelper modelSchemaHelper)
+    private void ProcessIndexes(SchemaExtractorHandlerExtensions handlerExtensions, ModelSchemaHelper modelSchemaHelper)
     {
         Console.WriteLine();
         Console.WriteLine("Indexes");
@@ -114,7 +114,7 @@ public class SqlSchemaExtractor
                     continue;
                 }
 
-                foreach (var handler in config.OnIndexHandlers)
+                foreach (var handler in handlerExtensions.OnIndexHandlers)
                 {
                     handler(_config, tableIndex, @class, modelSchemaHelper);
                 }
@@ -122,7 +122,7 @@ public class SqlSchemaExtractor
         }
     }
 
-    private void ProcessTables(SchemaExtractorConfiguration config, ModelSchemaHelper modelSchemaHelper)
+    private void ProcessTables(SchemaExtractorHandlerExtensions handlerExtensions, ModelSchemaHelper modelSchemaHelper)
     {
         Console.WriteLine();
         Console.WriteLine("Tables");
@@ -139,7 +139,7 @@ public class SqlSchemaExtractor
 
             Console.WriteLine($"{table.Name} ({++tableNumber}/{tableCount})");
 
-            foreach (var handler in config.OnTableHandlers)
+            foreach (var handler in handlerExtensions.OnTableHandlers)
             {
                 handler(_config, table, @class);
             }
@@ -151,7 +151,7 @@ public class SqlSchemaExtractor
                 var typeId = GetTypeId(col.DataType);
                 attribute.TypeReference.TypeId = typeId;
 
-                foreach (var handler in config.OnTableColumnHandlers)
+                foreach (var handler in handlerExtensions.OnTableColumnHandlers)
                 {
                     handler(col, attribute);
                 }
@@ -171,12 +171,12 @@ public class SqlSchemaExtractor
         {
             foreach (ForeignKey foreignKey in table.ForeignKeys)
             {
-                var association = modelSchemaHelper.GetOrCreateAssociation(foreignKey);
+                modelSchemaHelper.GetOrCreateAssociation(foreignKey);
             }
         }
     }
 
-    private void ProcessViews(SchemaExtractorConfiguration config, ModelSchemaHelper modelSchemaHelper)
+    private void ProcessViews(SchemaExtractorHandlerExtensions handlerExtensions, ModelSchemaHelper modelSchemaHelper)
     {
         Console.WriteLine();
         Console.WriteLine("Views");
@@ -192,7 +192,7 @@ public class SqlSchemaExtractor
 
             Console.WriteLine($"{view.Name} ({++viewNumber}/{viewsCount})");
 
-            foreach (var handler in config.OnViewHandlers)
+            foreach (var handler in handlerExtensions.OnViewHandlers)
             {
                 handler(view, @class);
             }
@@ -204,7 +204,7 @@ public class SqlSchemaExtractor
                 var typeId = GetTypeId(col.DataType);
                 attribute.TypeReference.TypeId = typeId;
 
-                foreach (var handler in config.OnViewColumnHandlers)
+                foreach (var handler in handlerExtensions.OnViewColumnHandlers)
                 {
                     handler(col, attribute);
                 }
@@ -212,7 +212,7 @@ public class SqlSchemaExtractor
         }
     }
 
-    private void ProcessUserDefinedTableTypes(SchemaExtractorConfiguration config, ModelSchemaHelper modelSchemaHelper)
+    private void ProcessUserDefinedTableTypes(ModelSchemaHelper modelSchemaHelper)
     {
         Console.WriteLine();
         Console.WriteLine("User Defined Table Types");
@@ -240,7 +240,7 @@ public class SqlSchemaExtractor
         }
     }
 
-    private void ProcessStoredProcedures(SchemaExtractorConfiguration config, ModelSchemaHelper modelSchemaHelper)
+    private void ProcessStoredProcedures(SchemaExtractorHandlerExtensions handlerExtensions, ModelSchemaHelper modelSchemaHelper)
     {
         Console.WriteLine();
         Console.WriteLine("Stored Procedures");
@@ -314,7 +314,7 @@ public class SqlSchemaExtractor
                 }
             }
 
-            foreach (var handler in config.OnStoredProcedureHandlers)
+            foreach (var handler in handlerExtensions.OnStoredProcedureHandlers)
             {
                 handler(storedProc, modelStoredProcedure);
             }
@@ -478,7 +478,7 @@ public class SqlSchemaExtractor
     }
 }
 
-public class SchemaExtractorConfiguration
+public class SchemaExtractorHandlerExtensions
 {
     public IEnumerable<Action<ImportConfiguration, Table, ElementPersistable>> OnTableHandlers { get; set; } =
         new List<Action<ImportConfiguration, Table, ElementPersistable>>();
