@@ -272,7 +272,7 @@ public class SqlSchemaExtractor
                     {
                         Id = Guid.NewGuid().ToString(),
                         IsNullable = false,
-                        IsCollection = false,
+                        IsCollection = true,
                         Stereotypes = [],
                         GenericTypeParameters = [],
                         TypeId = @class.Id
@@ -286,7 +286,7 @@ public class SqlSchemaExtractor
                 {
                     Id = Guid.NewGuid().ToString(),
                     IsNullable = false,
-                    IsCollection = false,
+                    IsCollection = true,
                     Stereotypes = [],
                     GenericTypeParameters = [],
                     TypeId = dataContract.Id
@@ -305,15 +305,33 @@ public class SqlSchemaExtractor
             {
                 var param = modelSchemaHelper.GetOrCreateStoredProcedureParameter(procParameter, modelStoredProcedure);
                 var typeId = procParameter.DataType.SqlDataType is SqlDataType.UserDefinedTableType
-                    ? modelSchemaHelper.GetOrCreateDataContract(GetFilteredUserDefinedTableTypes().First(p=>p.Schema==storedProc.Schema && p.Name==procParameter.DataType.Name)).Id
+                    ? GetDataContractTypeId(storedProc, procParameter)
                     : GetTypeId(procParameter.DataType);
                 param.TypeReference.TypeId = typeId;
+                if (procParameter.DataType.SqlDataType is SqlDataType.UserDefinedTableType)
+                {
+                    param.TypeReference.IsCollection = true;
+                }
             }
 
             foreach (var handler in config.OnStoredProcedureHandlers)
             {
                 handler(storedProc, modelStoredProcedure);
             }
+        }
+
+        return;
+
+        string? GetDataContractTypeId(StoredProcedure storedProc, StoredProcedureParameter procParameter)
+        {
+            var type = GetFilteredUserDefinedTableTypes().FirstOrDefault(p => p.Schema == storedProc.Schema && p.Name == procParameter.DataType.Name);
+            if (type is null)
+            {
+                Logging.LogWarning($"UserDefined Table {storedProc.Schema}.{procParameter.DataType.Name} not found");
+                return null;
+            }
+
+            return modelSchemaHelper.GetOrCreateDataContract(type).Id;
         }
     }
     
