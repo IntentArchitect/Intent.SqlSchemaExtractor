@@ -119,12 +119,12 @@ public class ModelSchemaHelper
         }
     }
 
-    public ElementPersistable GetOrCreateAttribute(Column column, ElementPersistable @class)
+    public static ElementPersistable GetOrCreateAttribute(Column column, ElementPersistable @class)
     {
         return InternalGetOrCreateAttribute(GetIdentity(column, @class), column.Nullable, @class);
     }
 
-    internal ElementPersistable GetOrCreateAttribute(ResultSetColumn column, ElementPersistable dataContract)
+    internal static ElementPersistable GetOrCreateAttribute(ResultSetColumn column, ElementPersistable dataContract)
     {
         return InternalGetOrCreateAttribute(GetIdentity(column, dataContract), column.IsNullable, dataContract);
     }
@@ -146,7 +146,7 @@ public class ModelSchemaHelper
                 SpecializationTypeId = AttributeType.Id,
                 SpecializationType = AttributeType.Name,
                 Stereotypes = [],
-                TypeReference = new TypeReferencePersistable()
+                TypeReference = new TypeReferencePersistable
                 {
                     Id = Guid.NewGuid().ToString(),
                     IsNullable = isNullable,
@@ -598,7 +598,7 @@ public class ModelSchemaHelper
         return element;
     }
 
-    internal ElementPersistable GetOrCreateDataContractResponse(ResultSetColumn[] resultSetColumns, StoredProcedure storedProcedure)
+    internal ElementPersistable GetOrCreateDataContractResponse(StoredProcedure storedProcedure)
     {
         var identity = $"{GetIdentity(storedProcedure).ExternalReference}.Response";
         var dataContract = _package.Classes.FirstOrDefault(x => x.ExternalReference == identity);
@@ -615,11 +615,6 @@ public class ModelSchemaHelper
                 SpecializationType = DataContract.Name,
                 ExternalReference = identity
             });
-        }
-
-        foreach (var column in resultSetColumns)
-        {
-            var attribute = GetOrCreateAttribute(column, dataContract);
         }
         
         return dataContract;

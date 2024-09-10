@@ -1,6 +1,9 @@
+using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.SqlServer.Management.Smo;
 
 namespace Intent.SQLSchemaExtractor;
@@ -9,26 +12,22 @@ internal static class StoredProcExtractor
 {
     public static StoredProcedureResultSet GetStoredProcedureResultSet(Database database, StoredProcedure storedProc)
     {
-        DataSet describeResults;
+        DataTable dataTable;
         try
         {
-            describeResults = database.ExecuteWithResults(
+            var describeResults = database.ExecuteWithResults(
                 $"""
-
                  EXEC sp_describe_first_result_set 
                      @tsql = N'EXEC [{storedProc.Schema}].[{storedProc.Name}]',
                      @params = N'',
                      @browse_information_mode = 1
                  """);
+            
+            dataTable = describeResults.Tables.OfType<DataTable>().First();
         }
-        catch
+        catch (Exception ex)
         {
-            return new StoredProcedureResultSet();
-        }
-
-        var dataTable = describeResults.Tables.OfType<DataTable>().FirstOrDefault();
-        if (dataTable is null)
-        {
+            Logging.LogWarning($"Failed to get stored procedure results for procedure {storedProc.Name}: {ex.Message}");
             return new StoredProcedureResultSet();
         }
 
@@ -127,6 +126,7 @@ internal class ResultSetColumn
         IsNullable = row.Field<bool>("is_nullable");
         SystemTypeId = row.Field<int>("system_type_id");
         SystemTypeName = row.Field<string>("system_type_name")!;
+        SqlDataType = DataType.SqlToEnum(Sanitize(SystemTypeName));
         SourceTableId = sourceTableId;
     }
 
@@ -135,5 +135,13 @@ internal class ResultSetColumn
     public bool IsNullable { get; private set; }
     public int SystemTypeId { get; private set; }
     public string SystemTypeName { get; private set; }
+    public SqlDataType SqlDataType { get; private set; }
     public int? SourceTableId { get; private set; }
+
+
+    private static readonly Regex SanitizeRegex = new Regex(@"(\([^\)]+\))$", RegexOptions.Compiled); 
+    private static string Sanitize(string systemTypeName)
+    {
+        return SanitizeRegex.Replace(systemTypeName, string.Empty);
+    }
 }

@@ -161,7 +161,7 @@ public class SqlSchemaExtractor
 
             foreach (Column col in table.Columns)
             {
-                var attribute = modelSchemaHelper.GetOrCreateAttribute(col, @class);
+                var attribute = ModelSchemaHelper.GetOrCreateAttribute(col, @class);
 
                 var typeId = GetTypeId(col.DataType);
                 attribute.TypeReference.TypeId = typeId;
@@ -226,7 +226,7 @@ public class SqlSchemaExtractor
 
             foreach (Column col in view.Columns)
             {
-                var attribute = modelSchemaHelper.GetOrCreateAttribute(col, @class);
+                var attribute = ModelSchemaHelper.GetOrCreateAttribute(col, @class);
 
                 var typeId = GetTypeId(col.DataType);
                 attribute.TypeReference.TypeId = typeId;
@@ -286,7 +286,7 @@ public class SqlSchemaExtractor
             }
             else if (resultSet.TableCount > 1)
             {
-                var dataContract = modelSchemaHelper.GetOrCreateDataContractResponse(resultSet.Columns, storedProc);
+                var dataContract = modelSchemaHelper.GetOrCreateDataContractResponse(storedProc);
                 modelStoredProcedure.TypeReference = new TypeReferencePersistable
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -296,6 +296,14 @@ public class SqlSchemaExtractor
                     GenericTypeParameters = [],
                     TypeId = dataContract.Id
                 };
+                
+                foreach (var column in resultSet.Columns)
+                {
+                    var attribute = ModelSchemaHelper.GetOrCreateAttribute(column, dataContract);
+            
+                    var typeId = GetTypeId(column.SqlDataType);
+                    attribute.TypeReference.TypeId = typeId;
+                }
             }
 
             foreach (StoredProcedureParameter procParameter in storedProc.Parameters)
@@ -339,10 +347,15 @@ public class SqlSchemaExtractor
         return (fullPackagePath, packageName);
     }
 
-
     private static string? GetTypeId(DataType dataType)
     {
-        switch (dataType.SqlDataType)
+        return GetTypeId(dataType.SqlDataType);
+    }
+    
+
+    private static string? GetTypeId(SqlDataType dataType)
+    {
+        switch (dataType)
         {
             case SqlDataType.Char:
             case SqlDataType.VarChar:
@@ -398,10 +411,11 @@ public class SqlSchemaExtractor
             case SqlDataType.Geometry:
             case SqlDataType.Geography:
             case SqlDataType.HierarchyId:
-                Logging.LogWarning($"Unsupported column type: {dataType.SqlDataType.ToString()}");
+                Logging.LogWarning($"Unsupported column type: {dataType.ToString()}");
                 return null;
+            case SqlDataType.Json:
             default:
-                Logging.LogWarning($"Unknown column type: {dataType.SqlDataType.ToString()}");
+                Logging.LogWarning($"Unknown column type: {dataType.ToString()}");
                 return null;
         }
     }
