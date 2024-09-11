@@ -8,6 +8,11 @@ namespace Intent.SQLSchemaExtractor;
 
 public class ImportConfiguration
 {
+	public const string ConfigFile = nameof(ConfigFile);
+	public const string GenerateConfigFile = nameof(GenerateConfigFile);
+	public const string SerializedConfig = nameof(SerializedConfig);
+	
+	
 	public string? ApplicationId { get; set; }
 	
 	public EntityNameConvention EntityNameConvention { get; set; } = EntityNameConvention.SingularEntity;
@@ -61,10 +66,6 @@ public class ImportConfiguration
 	{
 		return TypesToExport.Contains(ExportType.StoredProcedure);
 	}
-
-	public static void ConfigFile() { }
-	public static void GenerateConfigFile() { }
-	public static void SerializedConfig() { }
 }
 
 public enum ExportType

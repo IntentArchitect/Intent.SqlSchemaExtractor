@@ -205,6 +205,7 @@ public class Program
             Module = "Intent.EntityFrameworkCore.Repositories",
             IsExternal = true
         });
+        
         if (config.SettingPersistence != SettingPersistence.None)
         {
             string connectionString = config.ConnectionString!;
@@ -240,6 +241,7 @@ public class Program
             package.AddMetadata("sql-import:tableViewFilterFilePath", config.TableViewFilterFilePath);
             package.AddMetadata("sql-import:typesToExport", config.TypesToExport.Any() ? string.Join(";", config.TypesToExport.Select(t => t.ToString())) : "");
             package.AddMetadata("sql-import:settingPersistence", config.SettingPersistence.ToString());
+            package.AddMetadata("sql-import:storedProcedureType", config.StoredProcedureType.ToString());
         }
         else
         {
@@ -250,6 +252,7 @@ public class Program
             package.RemoveMetadata("sql-import:tableViewFilterFilePath");
             package.RemoveMetadata("sql-import:typesToExport");
             package.RemoveMetadata("sql-import:settingPersistence");
+            package.RemoveMetadata("sql-import:storedProcedureType");
         }
 
         Console.WriteLine("Saving package...");
