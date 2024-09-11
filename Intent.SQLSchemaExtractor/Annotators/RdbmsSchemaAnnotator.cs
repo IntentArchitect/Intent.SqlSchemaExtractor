@@ -324,6 +324,11 @@ internal static class RdbmsSchemaAnnotator
 
 	public static void ApplyStoredProcedureSettings(StoredProcedure sqlStoredProc, ElementPersistable elementStoredProc)
     {
+        if (!elementStoredProc.IsStoredProcedure())
+        {
+            return;
+        }
+        
         var stereotype = elementStoredProc.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.StoredProcedure.DefinitionId, InitStoredProcStereotype);
         if (sqlStoredProc.Name != elementStoredProc.Name)
         {

@@ -24,10 +24,12 @@ public class DatabaseSchemaToModelMapper
     internal static readonly SpecializationType DataContract = new("Data Contract", "4464fabe-c59e-4d90-81fc-c9245bdd1afd");
     internal static readonly SpecializationType AttributeType = new("Attribute", "0090fb93-483e-41af-a11d-5ad2dc796adf");
     internal static readonly SpecializationType IndexType = new("Index", "436e3afe-b4ef-481c-b803-0d1e7d263561");
-    internal static readonly SpecializationType StoredProcedureType = new("Stored Procedure", "575edd35-9438-406d-b0a7-b99d6f29b560");
     internal static readonly SpecializationType AssociationType = new("Association", "eaf9ed4e-0b61-4ac1-ba88-09f912c12087");
     internal static readonly SpecializationType IndexColumnType = new("Index Column", "c5ba925d-5c08-4809-a848-585a0cd4ddd3");
+    internal static readonly SpecializationType StoredProcedureType = new("Stored Procedure", "575edd35-9438-406d-b0a7-b99d6f29b560");
     internal static readonly SpecializationType StoredProcedureParameterType = new("Stored Procedure Parameter", "5823b192-eb03-47c8-90d8-5501c922e9a5");
+    internal static readonly SpecializationType OperationType = new("Operation", "e030c97a-e066-40a7-8188-808c275df3cb");
+    internal static readonly SpecializationType ParameterType = new("Parameter", "00208d20-469d-41cb-8501-768fd5eb796b");
 
     private readonly ImportConfiguration _config;
     private readonly PackageModelPersistable _package;
@@ -422,7 +424,17 @@ public class DatabaseSchemaToModelMapper
         return result.ToString();
     }
 
-    public ElementPersistable GetOrCreateStoredProcedure(StoredProcedure storedProcedure)
+    public ElementPersistable GetOrCreateStoredProcedureElement(StoredProcedure storedProcedure, string? storedProcedureElementId)
+    {
+        return InternalGetOrCreateStoredProcedureElement(storedProcedure, storedProcedureElementId, StoredProcedureType);
+    }
+
+    public ElementPersistable GetOrCreateStoredProcedureOperation(StoredProcedure storedProcedure, string? storedProcedureElementId)
+    {
+        return InternalGetOrCreateStoredProcedureElement(storedProcedure, storedProcedureElementId, OperationType);
+    }
+    
+    private ElementPersistable InternalGetOrCreateStoredProcedureElement(StoredProcedure storedProcedure, string? storedProcedureElementId, SpecializationType storedProcSpecializationType)
     {
         var folder = GetOrCreateFolder(storedProcedure.Schema);
         AddSchemaStereotype(folder, storedProcedure.Schema);
@@ -430,22 +442,24 @@ public class DatabaseSchemaToModelMapper
         var identity = GetIdentity(storedProcedure);
 
         var repositories = _package.Classes.Where(c => c.SpecializationTypeId == RepositoryType.Id).ToList();
-        var element = repositories.SelectMany(r => r.ChildElements).SingleOrDefault(x => x.ExternalReference == identity.ExternalReference && x.IsStoredProcedure());
+        var element = repositories.SelectMany(r => r.ChildElements).SingleOrDefault(x => x.ExternalReference == identity.ExternalReference && x.SpecializationTypeId == storedProcSpecializationType.Id);
         if (element is null)
         {
-            element = repositories.SelectMany(r => r.ChildElements).SingleOrDefault(x => x.Name == identity.Name && x.IsStoredProcedure());
+            element = repositories.SelectMany(r => r.ChildElements).SingleOrDefault(x => x.Name == identity.Name && x.SpecializationTypeId == storedProcSpecializationType.Id);
         }
 
         if (element is null)
         {
-            var repository = GetOrCreateRepository(folder, "StoredProcedureRepository");
+            var repository = string.IsNullOrEmpty(storedProcedureElementId) 
+                ? GetOrCreateRepositoryByName(folder, "StoredProcedureRepository")
+                : GetRepositoryById(storedProcedureElementId);
 
             repository.ChildElements.Add(element = new ElementPersistable
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = NormalizeStoredProcName(storedProcedure.Name),
-                SpecializationTypeId = StoredProcedureType.Id,
-                SpecializationType = StoredProcedureType.Name,
+                SpecializationTypeId = storedProcSpecializationType.Id,
+                SpecializationType = storedProcSpecializationType.Name,
                 Stereotypes = [],
                 TypeReference = null,
                 ExternalReference = identity.Name
@@ -456,14 +470,25 @@ public class DatabaseSchemaToModelMapper
         return element;
     }
 
-    public ElementPersistable GetOrCreateStoredProcedureParameter(StoredProcedureParameter parameter, ElementPersistable storedProcedure)
+    public ElementPersistable GetOrCreateStoredProcedureElementParameter(StoredProcedureParameter parameter, ElementPersistable storedProcedure)
+    {
+        return InternalGetOrCreateStoredProcedureElementParameter(parameter, storedProcedure, StoredProcedureParameterType);
+    }
+
+    public ElementPersistable GetOrCreateStoredProcedureOperationParameter(StoredProcedureParameter parameter, ElementPersistable storedProcedure)
+    {
+        return InternalGetOrCreateStoredProcedureElementParameter(parameter, storedProcedure, ParameterType);
+    }
+
+    private ElementPersistable InternalGetOrCreateStoredProcedureElementParameter(StoredProcedureParameter parameter, ElementPersistable storedProcedure,
+        SpecializationType storedProcedureParameterType)
     {
         var identity = GetIdentity(parameter);
 
         var element = storedProcedure.ChildElements
-                          .FirstOrDefault(c => c.ExternalReference == identity.ExternalReference && c.SpecializationTypeId == StoredProcedureParameterType.Id) ??
+                          .FirstOrDefault(c => c.ExternalReference == identity.ExternalReference && c.SpecializationTypeId == storedProcedureParameterType.Id) ??
                       storedProcedure.ChildElements
-                          .FirstOrDefault(c => c.Name == identity.Name && c.SpecializationTypeId == StoredProcedureParameterType.Id);
+                          .FirstOrDefault(c => c.Name == identity.Name && c.SpecializationTypeId == storedProcedureParameterType.Id);
 
         if (element is null)
         {
@@ -471,8 +496,8 @@ public class DatabaseSchemaToModelMapper
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = identity.Name,
-                SpecializationTypeId = StoredProcedureParameterType.Id,
-                SpecializationType = StoredProcedureParameterType.Name,
+                SpecializationTypeId = storedProcedureParameterType.Id,
+                SpecializationType = storedProcedureParameterType.Name,
                 Stereotypes = [],
                 TypeReference = new TypeReferencePersistable
                 {
@@ -963,8 +988,6 @@ public class DatabaseSchemaToModelMapper
         normalized = normalized.RemovePrefix("prc")
             .RemovePrefix("Prc")
             .RemovePrefix("proc");
-
-        normalized = normalized[..1].ToUpper() + normalized[1..];
         return normalized;
     }
 
@@ -1034,8 +1057,18 @@ public class DatabaseSchemaToModelMapper
     {
         return (association.TargetEnd.Name ?? targetClassName) + pkAttributeName;
     }
-
-    private ElementPersistable GetOrCreateRepository(ElementPersistable folder, string repositoryName)
+    
+    private ElementPersistable GetRepositoryById(string repositoryElementId)
+    {
+        var element = _package.Classes.SingleOrDefault(x => x.Id == repositoryElementId && x.IsRepository());
+        if (element == null)
+        {
+            throw new Exception($"Unable to resolve repository element id {repositoryElementId}");
+        }
+        return element;
+    }
+    
+    private ElementPersistable GetOrCreateRepositoryByName(ElementPersistable folder, string repositoryName)
     {
         var element = _package.Classes.SingleOrDefault(x => x.Name == repositoryName && x.IsRepository());
         if (element == null)

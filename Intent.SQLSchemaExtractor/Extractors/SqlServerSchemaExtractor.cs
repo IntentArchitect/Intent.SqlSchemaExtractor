@@ -261,8 +261,10 @@ public class SqlServerSchemaExtractor
 
             Console.WriteLine($"{storedProc.Name} ({++storedProceduresNumber}/{storedProceduresCount})");
 
-            var modelStoredProcedure = databaseSchemaToModelMapper.GetOrCreateStoredProcedure(storedProc);
-                
+            var modelStoredProcedure = _config.StoredProcedureType == StoredProcedureType.StoredProcedureElement 
+                ? databaseSchemaToModelMapper.GetOrCreateStoredProcedureElement(storedProc, _config.RepositoryElementId)
+                : databaseSchemaToModelMapper.GetOrCreateStoredProcedureOperation(storedProc, _config.RepositoryElementId);
+            
             var resultSet = StoredProcExtractor.GetStoredProcedureResultSet(_db, storedProc);
             if (resultSet.TableCount == 1)
             {
@@ -305,7 +307,10 @@ public class SqlServerSchemaExtractor
 
             foreach (StoredProcedureParameter procParameter in storedProc.Parameters)
             {
-                var param = databaseSchemaToModelMapper.GetOrCreateStoredProcedureParameter(procParameter, modelStoredProcedure);
+                var param = _config.StoredProcedureType == StoredProcedureType.StoredProcedureElement 
+                    ? databaseSchemaToModelMapper.GetOrCreateStoredProcedureElementParameter(procParameter, modelStoredProcedure)
+                    : databaseSchemaToModelMapper.GetOrCreateStoredProcedureOperationParameter(procParameter, modelStoredProcedure);
+                
                 var typeId = procParameter.DataType.SqlDataType is SqlDataType.UserDefinedTableType
                     ? GetDataContractTypeId(storedProc, procParameter)
                     : GetTypeId(procParameter.DataType);

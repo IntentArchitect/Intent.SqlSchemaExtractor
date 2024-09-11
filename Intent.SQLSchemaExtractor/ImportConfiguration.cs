@@ -18,6 +18,9 @@ public class ImportConfiguration
 	public HashSet<string> SchemaFilter { get; set; } = [];
 	public string TableViewFilterFilePath { get; set; }
 	
+	public StoredProcedureType StoredProcedureType { get; set; } = StoredProcedureType.StoredProcedureElement;
+	public string? RepositoryElementId { get; set; }
+	
 	public string? ConnectionString { get; set; }
 	public string? PackageFileName { get; set; }
 	public string? ApplicationId { get; set; }
@@ -92,4 +95,10 @@ public enum SettingPersistence
 	AllSanitisedConnectionString,
 	AllWithoutConnectionString,
 	All
+}
+
+public enum StoredProcedureType
+{
+	StoredProcedureElement,
+	RepositoryOperation
 }
