@@ -8,9 +8,7 @@ namespace Intent.SQLSchemaExtractor;
 
 public class ImportConfiguration
 {
-	public ImportConfiguration()
-	{            
-	}
+	public string? ApplicationId { get; set; }
 	
 	public EntityNameConvention EntityNameConvention { get; set; } = EntityNameConvention.SingularEntity;
 	public TableStereotype TableStereotype { get; set; } = TableStereotype.WhenDifferent;
@@ -23,7 +21,7 @@ public class ImportConfiguration
 	
 	public string? ConnectionString { get; set; }
 	public string? PackageFileName { get; set; }
-	public string? ApplicationId { get; set; }
+	
 
 	public SettingPersistence SettingPersistence { get; set; } = SettingPersistence.None;
 
