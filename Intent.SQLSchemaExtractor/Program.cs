@@ -10,6 +10,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
 using Intent.Modules.Common.Templates;
+using Intent.SQLSchemaExtractor.Annotators;
+using Intent.SQLSchemaExtractor.ExtensionMethods;
+using Intent.SQLSchemaExtractor.Extractors;
 using Microsoft.Data.SqlClient;
 using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.Smo;
@@ -56,7 +59,7 @@ public class Program
                 description: "The file name of the Intent Domain Package into which to synchronize the metadata."),
             new Option<string?>(
                 name: GetOptionName(nameof(ImportConfiguration.SerializedConfig)),
-                description: "JSON string representing a serialized configuration file."),
+                description: "JSON string representing a serialized configuration file.")
         };
 
         rootCommand.SetHandler(
@@ -138,40 +141,39 @@ public class Program
         var connection = new SqlConnection(config.ConnectionString);
         connection.Open();
         var db = new Server(new ServerConnection(connection)).Databases[connection.Database];
-
-
-        var package = new SqlSchemaExtractor(config, db).BuildPackageModel(config.PackageFileName!, new SchemaExtractorConfiguration
+        
+        var package = new SqlServerSchemaExtractor(config, db).BuildPackageModel(config.PackageFileName!, new SchemaExtractorEventManager
         {
             OnTableHandlers = new[]
             {
-                RdbmsDecorator.ApplyTableDetails
+                RdbmsSchemaAnnotator.ApplyTableDetails
             },
             OnViewHandlers = new[]
             {
-                RdbmsDecorator.ApplyViewDetails
+                RdbmsSchemaAnnotator.ApplyViewDetails
             },
             OnTableColumnHandlers = new[]
             {
-                RdbmsDecorator.ApplyPrimaryKey,
-                RdbmsDecorator.ApplyColumnDetails,
-                RdbmsDecorator.ApplyTextConstraint,
-                RdbmsDecorator.ApplyDecimalConstraint,
-                RdbmsDecorator.ApplyDefaultConstraint,
-                RdbmsDecorator.ApplyComputedValue
+                RdbmsSchemaAnnotator.ApplyPrimaryKey,
+                RdbmsSchemaAnnotator.ApplyColumnDetails,
+                RdbmsSchemaAnnotator.ApplyTextConstraint,
+                RdbmsSchemaAnnotator.ApplyDecimalConstraint,
+                RdbmsSchemaAnnotator.ApplyDefaultConstraint,
+                RdbmsSchemaAnnotator.ApplyComputedValue
             },
             OnViewColumnHandlers = new[]
             {
-                RdbmsDecorator.ApplyColumnDetails,
-                RdbmsDecorator.ApplyTextConstraint,
-                RdbmsDecorator.ApplyDecimalConstraint
+                RdbmsSchemaAnnotator.ApplyColumnDetails,
+                RdbmsSchemaAnnotator.ApplyTextConstraint,
+                RdbmsSchemaAnnotator.ApplyDecimalConstraint
             },
             OnIndexHandlers = new[]
             {
-                RdbmsDecorator.ApplyIndex
+                RdbmsSchemaAnnotator.ApplyIndex
             },
             OnStoredProcedureHandlers = new[]
             {
-                RdbmsDecorator.ApplyStoredProcedureSettings
+                RdbmsSchemaAnnotator.ApplyStoredProcedureSettings
             }
         });
         package.Name = Path.GetFileNameWithoutExtension(package.Name);
@@ -232,7 +234,7 @@ public class Program
                 package.AddMetadata("sql-import:connectionString", connectionString);
             }
 
-            package.AddMetadata("sql-import:tableStereotypes", config.TableStereotypes.ToString());
+            package.AddMetadata("sql-import:tableStereotypes", config.TableStereotype.ToString());
             package.AddMetadata("sql-import:entityNameConvention", config.EntityNameConvention.ToString());
             package.AddMetadata("sql-import:schemaFilter", config.SchemaFilter.Any() ? string.Join(";", config.SchemaFilter) : "");
             package.AddMetadata("sql-import:tableViewFilterFilePath", config.TableViewFilterFilePath);

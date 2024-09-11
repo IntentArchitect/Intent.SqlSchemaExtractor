@@ -1,16 +1,18 @@
-﻿using Intent.IArchitect.Agent.Persistence.Model;
-using Intent.IArchitect.Agent.Persistence.Model.Common;
-using Intent.Modules.Common.Templates;
-using Microsoft.SqlServer.Management.Smo;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Intent.IArchitect.Agent.Persistence.Model;
+using Intent.IArchitect.Agent.Persistence.Model.Common;
+using Intent.Modules.Common.Templates;
+using Intent.SQLSchemaExtractor.ExtensionMethods;
+using Intent.SQLSchemaExtractor.Extractors;
+using Microsoft.SqlServer.Management.Smo;
 
-namespace Intent.SQLSchemaExtractor;
+namespace Intent.SQLSchemaExtractor.ModelMapper;
 
-public class ModelSchemaHelper
+public class DatabaseSchemaToModelMapper
 {
     private const string DomainMetadataId = "6ab29b31-27af-4f56-a67c-986d82097d63";
     private const string ColumnMappingSettingsId = "30f4278f-1d74-4e7e-bfdb-39c8e120f24c";
@@ -59,7 +61,7 @@ public class ModelSchemaHelper
 
     #endregion
 
-    public ModelSchemaHelper(ImportConfiguration config, PackageModelPersistable package, Database db)
+    public DatabaseSchemaToModelMapper(ImportConfiguration config, PackageModelPersistable package, Database db)
     {
         _config = config;
         _package = package;

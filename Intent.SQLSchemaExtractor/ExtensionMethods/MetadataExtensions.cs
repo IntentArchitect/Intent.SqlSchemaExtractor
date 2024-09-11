@@ -1,10 +1,10 @@
-﻿using Intent.IArchitect.Agent.Persistence.Model;
+﻿using System.Linq;
+using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
-using System.Linq;
 
-namespace Intent.SQLSchemaExtractor;
+namespace Intent.SQLSchemaExtractor.ExtensionMethods;
 
-internal static class PackageExtensions
+internal static class MetadataExtensions
 {
 	internal static void AddMetadata(this PackageModelPersistable package, string key, string value)
 	{

@@ -5,9 +5,9 @@ using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
 using Microsoft.SqlServer.Management.Dmf;
 
-namespace Intent.SQLSchemaExtractor;
+namespace Intent.SQLSchemaExtractor.ExtensionMethods;
 
-public static class PersistableExtensions
+internal static class StereotypeExtensions
 {
     public static bool TryGetStereotypeProperty(
         this ElementPersistable element,
@@ -33,7 +33,8 @@ public static class PersistableExtensions
         return true;
     }
 
-    public static StereotypePersistable GetOrCreateStereotype(this ElementPersistable element,
+    public static StereotypePersistable GetOrCreateStereotype(
+        this ElementPersistable element,
         string stereotypeDefinitionId,
         Action<StereotypePersistable>? initAction = null)
     {
@@ -57,7 +58,8 @@ public static class PersistableExtensions
         return stereotype;
     }
 
-    public static StereotypePersistable GetOrCreateStereotype(this AssociationEndPersistable element,
+    public static StereotypePersistable GetOrCreateStereotype(
+        this AssociationEndPersistable element,
         string stereotypeDefinitionId,
         Action<StereotypePersistable>? initAction = null)
     {
@@ -81,7 +83,8 @@ public static class PersistableExtensions
         return stereotype;
     }
 
-    public static StereotypePropertyPersistable GetOrCreateProperty(this StereotypePersistable stereotype,
+    public static StereotypePropertyPersistable GetOrCreateProperty(
+        this StereotypePersistable stereotype,
         string propertyId,
         Action<StereotypePropertyPersistable>? initAction = null)
     {

@@ -4,12 +4,14 @@ using System.Linq;
 using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
 using Intent.Modules.Common.Templates;
+using Intent.SQLSchemaExtractor.ExtensionMethods;
+using Intent.SQLSchemaExtractor.ModelMapper;
 using Microsoft.SqlServer.Management.Smo;
 using Index = Microsoft.SqlServer.Management.Smo.Index;
 
-namespace Intent.SQLSchemaExtractor;
+namespace Intent.SQLSchemaExtractor.Annotators;
 
-internal static class RdbmsDecorator
+internal static class RdbmsSchemaAnnotator
 {
     public static void ApplyTableDetails(ImportConfiguration config, Table table, ElementPersistable @class)
     {
@@ -35,11 +37,11 @@ internal static class RdbmsDecorator
 
     private static bool RequiresTableStereoType(ImportConfiguration config, Table table, ElementPersistable @class)
     {
-        return config.TableStereotypes switch
+        return config.TableStereotype switch
         {
-            TableStereotypes.Always => true,
-            TableStereotypes.WhenDifferent when config.EntityNameConvention is EntityNameConvention.MatchTable => @class.Name != table.Name,
-            TableStereotypes.WhenDifferent when config.EntityNameConvention is EntityNameConvention.SingularEntity => @class.Name.Pluralize() != table.Name,
+            TableStereotype.Always => true,
+            TableStereotype.WhenDifferent when config.EntityNameConvention is EntityNameConvention.MatchTable => @class.Name != table.Name,
+            TableStereotype.WhenDifferent when config.EntityNameConvention is EntityNameConvention.SingularEntity => @class.Name.Pluralize() != table.Name,
             _ => false
         };
     }
@@ -270,7 +272,7 @@ internal static class RdbmsDecorator
         }
     }
 
-    public static void ApplyIndex(ImportConfiguration config ,Index index, ElementPersistable @class, ModelSchemaHelper modelSchemaHelper)
+    public static void ApplyIndex(ImportConfiguration config ,Index index, ElementPersistable @class, DatabaseSchemaToModelMapper databaseSchemaToModelMapper)
     {
 		if (index.Parent is Table table)
 		{
@@ -286,7 +288,7 @@ internal static class RdbmsDecorator
 			return;
 		}
 
-        var indexPersistable = modelSchemaHelper.GetOrCreateIndex(index, @class);
+        var indexPersistable = databaseSchemaToModelMapper.GetOrCreateIndex(index, @class);
 
         var indexValues = new Dictionary<string, string?>
         {
@@ -299,7 +301,7 @@ internal static class RdbmsDecorator
 			indexValues.Add(Constants.Stereotypes.Rdbms.Index.Settings.PropertyId.FilterCustomValue, index.FilterDefinition);
 		}
         
-		modelSchemaHelper.UpdateStereoType(
+		databaseSchemaToModelMapper.UpdateStereoType(
             indexPersistable, 
             Constants.Stereotypes.Rdbms.Index.Settings.DefinitionId,
             indexValues);
@@ -316,7 +318,7 @@ internal static class RdbmsDecorator
 				Logging.LogWarning($"For Index on Class `{@class.Name}` can't find attribute for Index column `{indexColumn.Name}`.");
 		    }
 
-			modelSchemaHelper.CreateIndexColumn(indexColumn, indexPersistable, attribute);
+			databaseSchemaToModelMapper.CreateIndexColumn(indexColumn, indexPersistable, attribute);
 		}
     }
 

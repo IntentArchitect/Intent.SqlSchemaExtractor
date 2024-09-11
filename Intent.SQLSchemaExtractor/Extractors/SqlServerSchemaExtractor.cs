@@ -1,16 +1,18 @@
-﻿using Intent.IArchitect.Agent.Persistence.Model;
-using Intent.IArchitect.Agent.Persistence.Model.Common;
-using Microsoft.SqlServer.Management.Smo;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Intent.IArchitect.Agent.Persistence.Model;
+using Intent.IArchitect.Agent.Persistence.Model.Common;
+using Intent.SQLSchemaExtractor.ExtensionMethods;
+using Intent.SQLSchemaExtractor.ModelMapper;
+using Microsoft.SqlServer.Management.Smo;
 using Index = Microsoft.SqlServer.Management.Smo.Index;
 
-namespace Intent.SQLSchemaExtractor;
+namespace Intent.SQLSchemaExtractor.Extractors;
 
-public class SqlSchemaExtractor
+public class SqlServerSchemaExtractor
 {
     private readonly Database _db;
     private readonly ImportConfiguration _config;
@@ -20,18 +22,18 @@ public class SqlSchemaExtractor
 
     public string SchemaVersion => "2.0";
 
-    public SqlSchemaExtractor(ImportConfiguration config, Database db)
+    public SqlServerSchemaExtractor(ImportConfiguration config, Database db)
     {
         _db = db;
         _config = config;
         _tableViewsFilter = new HashSet<string>(_config.GetFilteredTableViewList(), StringComparer.InvariantCultureIgnoreCase);
     }
 
-    public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtractorHandlerExtensions handlerExtensions)
+    public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtractorEventManager eventManager)
     {
         var (fullPackagePath, packageName) = GetPackageLocationAndName(packageNameOrPath);
-        var package = ModelSchemaHelper.GetOrCreateDomainPackage(fullPackagePath, packageName);
-        var modelSchemaHelper = new ModelSchemaHelper(_config, package, _db);
+        var package = DatabaseSchemaToModelMapper.GetOrCreateDomainPackage(fullPackagePath, packageName);
+        var modelSchemaHelper = new DatabaseSchemaToModelMapper(_config, package, _db);
         var savedSchemaVersion = package.Metadata.FirstOrDefault(m => m.Key == "sql-import:schemaVersion")?.Value;
         if (savedSchemaVersion != SchemaVersion)
         {
@@ -43,24 +45,24 @@ public class SqlSchemaExtractor
         ApplyStereotypes(package);
         if (_config.ExportTables())
         {
-            ProcessTables(handlerExtensions, modelSchemaHelper);
+            ProcessTables(eventManager, modelSchemaHelper);
             ProcessForeignKeys(modelSchemaHelper);
         }
 
         if (_config.ExportIndexes())
         {
-            ProcessIndexes(handlerExtensions, modelSchemaHelper);
+            ProcessIndexes(eventManager, modelSchemaHelper);
         }
 
         if (_config.ExportViews())
         {
-            ProcessViews(handlerExtensions, modelSchemaHelper);
+            ProcessViews(eventManager, modelSchemaHelper);
         }
 
         if (_config.ExportStoredProcedures())
         {
             ProcessUserDefinedTableTypes(modelSchemaHelper);
-            ProcessStoredProcedures(handlerExtensions, modelSchemaHelper);
+            ProcessStoredProcedures(eventManager, modelSchemaHelper);
         }
 
         package.References ??= [];
@@ -91,7 +93,7 @@ public class SqlSchemaExtractor
     }
 
 
-    private void ProcessIndexes(SchemaExtractorHandlerExtensions handlerExtensions, ModelSchemaHelper modelSchemaHelper)
+    private void ProcessIndexes(SchemaExtractorEventManager eventManager, DatabaseSchemaToModelMapper databaseSchemaToModelMapper)
     {
         Console.WriteLine();
         Console.WriteLine("Indexes");
@@ -101,7 +103,7 @@ public class SqlSchemaExtractor
         var filteredTables = GetFilteredTables();
         foreach (var table in filteredTables)
         {
-            var @class = modelSchemaHelper.GetClass(table);
+            var @class = databaseSchemaToModelMapper.GetClass(table);
             if (@class == null)
             {
                 continue;
@@ -114,15 +116,15 @@ public class SqlSchemaExtractor
                     continue;
                 }
 
-                foreach (var handler in handlerExtensions.OnIndexHandlers)
+                foreach (var handler in eventManager.OnIndexHandlers)
                 {
-                    handler(_config, tableIndex, @class, modelSchemaHelper);
+                    handler(_config, tableIndex, @class, databaseSchemaToModelMapper);
                 }
             }
         }
     }
 
-    private void ProcessTables(SchemaExtractorHandlerExtensions handlerExtensions, ModelSchemaHelper modelSchemaHelper)
+    private void ProcessTables(SchemaExtractorEventManager eventManager, DatabaseSchemaToModelMapper databaseSchemaToModelMapper)
     {
         Console.WriteLine();
         Console.WriteLine("Tables");
@@ -135,23 +137,23 @@ public class SqlSchemaExtractor
 
         foreach (var table in filteredTables)
         {
-            var @class = modelSchemaHelper.GetOrCreateClass(table);
+            var @class = databaseSchemaToModelMapper.GetOrCreateClass(table);
 
             Console.WriteLine($"{table.Name} ({++tableNumber}/{tableCount})");
 
-            foreach (var handler in handlerExtensions.OnTableHandlers)
+            foreach (var handler in eventManager.OnTableHandlers)
             {
                 handler(_config, table, @class);
             }
 
             foreach (Column col in table.Columns)
             {
-                var attribute = modelSchemaHelper.GetOrCreateAttribute(col, @class);
+                var attribute = databaseSchemaToModelMapper.GetOrCreateAttribute(col, @class);
 
                 var typeId = GetTypeId(col.DataType);
                 attribute.TypeReference.TypeId = typeId;
 
-                foreach (var handler in handlerExtensions.OnTableColumnHandlers)
+                foreach (var handler in eventManager.OnTableColumnHandlers)
                 {
                     handler(col, attribute);
                 }
@@ -159,7 +161,7 @@ public class SqlSchemaExtractor
         }
     }
 
-    private void ProcessForeignKeys(ModelSchemaHelper modelSchemaHelper)
+    private void ProcessForeignKeys(DatabaseSchemaToModelMapper databaseSchemaToModelMapper)
     {
         Console.WriteLine();
         Console.WriteLine("Foreign Keys");
@@ -171,12 +173,12 @@ public class SqlSchemaExtractor
         {
             foreach (ForeignKey foreignKey in table.ForeignKeys)
             {
-                modelSchemaHelper.GetOrCreateAssociation(foreignKey);
+                databaseSchemaToModelMapper.GetOrCreateAssociation(foreignKey);
             }
         }
     }
 
-    private void ProcessViews(SchemaExtractorHandlerExtensions handlerExtensions, ModelSchemaHelper modelSchemaHelper)
+    private void ProcessViews(SchemaExtractorEventManager eventManager, DatabaseSchemaToModelMapper databaseSchemaToModelMapper)
     {
         Console.WriteLine();
         Console.WriteLine("Views");
@@ -188,23 +190,23 @@ public class SqlSchemaExtractor
         var viewNumber = 0;
         foreach (var view in filteredViews)
         {
-            var @class = modelSchemaHelper.GetOrCreateClass(view);
+            var @class = databaseSchemaToModelMapper.GetOrCreateClass(view);
 
             Console.WriteLine($"{view.Name} ({++viewNumber}/{viewsCount})");
 
-            foreach (var handler in handlerExtensions.OnViewHandlers)
+            foreach (var handler in eventManager.OnViewHandlers)
             {
                 handler(view, @class);
             }
 
             foreach (Column col in view.Columns)
             {
-                var attribute = modelSchemaHelper.GetOrCreateAttribute(col, @class);
+                var attribute = databaseSchemaToModelMapper.GetOrCreateAttribute(col, @class);
 
                 var typeId = GetTypeId(col.DataType);
                 attribute.TypeReference.TypeId = typeId;
 
-                foreach (var handler in handlerExtensions.OnViewColumnHandlers)
+                foreach (var handler in eventManager.OnViewColumnHandlers)
                 {
                     handler(col, attribute);
                 }
@@ -212,7 +214,7 @@ public class SqlSchemaExtractor
         }
     }
 
-    private void ProcessUserDefinedTableTypes(ModelSchemaHelper modelSchemaHelper)
+    private void ProcessUserDefinedTableTypes(DatabaseSchemaToModelMapper databaseSchemaToModelMapper)
     {
         Console.WriteLine();
         Console.WriteLine("User Defined Table Types");
@@ -231,16 +233,16 @@ public class SqlSchemaExtractor
 
             Console.WriteLine($"{userDefinedTableType.Name} ({++userDefinedTableTypesNumber}/{userDefinedTableTypesCount})");
 
-            var modelDataContract = modelSchemaHelper.GetOrCreateDataContract(userDefinedTableType);
+            var modelDataContract = databaseSchemaToModelMapper.GetOrCreateDataContract(userDefinedTableType);
             foreach (Column column in userDefinedTableType.Columns)
             {
-                var attr = modelSchemaHelper.GetOrCreateAttribute(column, modelDataContract);
+                var attr = databaseSchemaToModelMapper.GetOrCreateAttribute(column, modelDataContract);
                 attr.TypeReference.TypeId = GetTypeId(column.DataType);
             }
         }
     }
 
-    private void ProcessStoredProcedures(SchemaExtractorHandlerExtensions handlerExtensions, ModelSchemaHelper modelSchemaHelper)
+    private void ProcessStoredProcedures(SchemaExtractorEventManager eventManager, DatabaseSchemaToModelMapper databaseSchemaToModelMapper)
     {
         Console.WriteLine();
         Console.WriteLine("Stored Procedures");
@@ -259,7 +261,7 @@ public class SqlSchemaExtractor
 
             Console.WriteLine($"{storedProc.Name} ({++storedProceduresNumber}/{storedProceduresCount})");
 
-            var modelStoredProcedure = modelSchemaHelper.GetOrCreateStoredProcedure(storedProc);
+            var modelStoredProcedure = databaseSchemaToModelMapper.GetOrCreateStoredProcedure(storedProc);
                 
             var resultSet = StoredProcExtractor.GetStoredProcedureResultSet(_db, storedProc);
             if (resultSet.TableCount == 1)
@@ -267,7 +269,7 @@ public class SqlSchemaExtractor
                 var table = GetFilteredTables().FirstOrDefault(p => p.ID == resultSet.TableIds[0]);
                 if (table is not null)
                 {
-                    var @class = modelSchemaHelper.GetOrCreateClass(table);
+                    var @class = databaseSchemaToModelMapper.GetOrCreateClass(table);
                     modelStoredProcedure.TypeReference = new TypeReferencePersistable
                     {
                         Id = Guid.NewGuid().ToString(),
@@ -281,7 +283,7 @@ public class SqlSchemaExtractor
             }
             else if (resultSet.TableCount > 1)
             {
-                var dataContract = modelSchemaHelper.GetOrCreateDataContractResponse(storedProc);
+                var dataContract = databaseSchemaToModelMapper.GetOrCreateDataContractResponse(storedProc);
                 modelStoredProcedure.TypeReference = new TypeReferencePersistable
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -294,7 +296,7 @@ public class SqlSchemaExtractor
                 
                 foreach (var column in resultSet.Columns)
                 {
-                    var attribute = modelSchemaHelper.GetOrCreateAttribute(column, dataContract);
+                    var attribute = databaseSchemaToModelMapper.GetOrCreateAttribute(column, dataContract);
             
                     var typeId = GetTypeId(column.SqlDataType);
                     attribute.TypeReference.TypeId = typeId;
@@ -303,7 +305,7 @@ public class SqlSchemaExtractor
 
             foreach (StoredProcedureParameter procParameter in storedProc.Parameters)
             {
-                var param = modelSchemaHelper.GetOrCreateStoredProcedureParameter(procParameter, modelStoredProcedure);
+                var param = databaseSchemaToModelMapper.GetOrCreateStoredProcedureParameter(procParameter, modelStoredProcedure);
                 var typeId = procParameter.DataType.SqlDataType is SqlDataType.UserDefinedTableType
                     ? GetDataContractTypeId(storedProc, procParameter)
                     : GetTypeId(procParameter.DataType);
@@ -314,7 +316,7 @@ public class SqlSchemaExtractor
                 }
             }
 
-            foreach (var handler in handlerExtensions.OnStoredProcedureHandlers)
+            foreach (var handler in eventManager.OnStoredProcedureHandlers)
             {
                 handler(storedProc, modelStoredProcedure);
             }
@@ -331,7 +333,7 @@ public class SqlSchemaExtractor
                 return null;
             }
 
-            return modelSchemaHelper.GetOrCreateDataContract(type).Id;
+            return databaseSchemaToModelMapper.GetOrCreateDataContract(type).Id;
         }
     }
     
@@ -476,19 +478,4 @@ public class SqlSchemaExtractor
                 return null;
         }
     }
-}
-
-public class SchemaExtractorHandlerExtensions
-{
-    public IEnumerable<Action<ImportConfiguration, Table, ElementPersistable>> OnTableHandlers { get; set; } =
-        new List<Action<ImportConfiguration, Table, ElementPersistable>>();
-
-    public IEnumerable<Action<Column, ElementPersistable>> OnTableColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
-
-    public IEnumerable<Action<ImportConfiguration, Index, ElementPersistable, ModelSchemaHelper>> OnIndexHandlers { get; set; } =
-        new List<Action<ImportConfiguration, Index, ElementPersistable, ModelSchemaHelper>>();
-
-    public IEnumerable<Action<View, ElementPersistable>> OnViewHandlers { get; set; } = new List<Action<View, ElementPersistable>>();
-    public IEnumerable<Action<Column, ElementPersistable>> OnViewColumnHandlers { get; set; } = new List<Action<Column, ElementPersistable>>();
-    public IEnumerable<Action<StoredProcedure, ElementPersistable>> OnStoredProcedureHandlers { get; set; } = new List<Action<StoredProcedure, ElementPersistable>>();
 }

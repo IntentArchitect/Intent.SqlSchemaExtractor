@@ -13,13 +13,11 @@ public class ImportConfiguration
 	}
 	
 	public EntityNameConvention EntityNameConvention { get; set; } = EntityNameConvention.SingularEntity;
-	public TableStereotypes TableStereotypes { get; set; } = TableStereotypes.WhenDifferent;
-
-	public HashSet<ExportTypes> TypesToExport { get; set; } = new() { ExportTypes.Table, ExportTypes.View, ExportTypes.StoredProcedure, ExportTypes.Index };
-
-	public HashSet<string> SchemaFilter { get; set; } = new();
+	public TableStereotype TableStereotype { get; set; } = TableStereotype.WhenDifferent;
+	public HashSet<ExportType> TypesToExport { get; set; } = [ExportType.Table, ExportType.View, ExportType.StoredProcedure, ExportType.Index];
+	public HashSet<string> SchemaFilter { get; set; } = [];
 	public string TableViewFilterFilePath { get; set; }
-
+	
 	public string? ConnectionString { get; set; }
 	public string? PackageFileName { get; set; }
 	public string? ApplicationId { get; set; }
@@ -44,23 +42,23 @@ public class ImportConfiguration
 
 	internal bool ExportTables()
 	{
-		return TypesToExport.Contains(ExportTypes.Table);
+		return TypesToExport.Contains(ExportType.Table);
 	}
 
 	internal bool ExportViews()
 	{
-		return TypesToExport.Contains(ExportTypes.View);
+		return TypesToExport.Contains(ExportType.View);
 	}
 
 	internal bool ExportIndexes()
 	{
-		return TypesToExport.Contains(ExportTypes.Index);
+		return TypesToExport.Contains(ExportType.Index);
 	}
 		
 
 	internal bool ExportStoredProcedures()
 	{
-		return TypesToExport.Contains(ExportTypes.StoredProcedure);
+		return TypesToExport.Contains(ExportType.StoredProcedure);
 	}
 
 	public static void ConfigFile() { }
@@ -68,7 +66,7 @@ public class ImportConfiguration
 	public static void SerializedConfig() { }
 }
 
-public enum ExportTypes
+public enum ExportType
 {
 	Table,
 	View,
@@ -76,7 +74,7 @@ public enum ExportTypes
 	Index
 }
 
-public enum TableStereotypes
+public enum TableStereotype
 {
 	Always,
 	WhenDifferent
