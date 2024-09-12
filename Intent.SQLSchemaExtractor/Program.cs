@@ -205,55 +205,6 @@ public class Program
             Module = "Intent.EntityFrameworkCore.Repositories",
             IsExternal = true
         });
-        
-        if (config.SettingPersistence != SettingPersistence.None)
-        {
-            string connectionString = config.ConnectionString!;
-
-            if (config.SettingPersistence == SettingPersistence.AllSanitisedConnectionString)
-            {
-                var builder = new SqlConnectionStringBuilder();
-                builder.ConnectionString = connectionString;
-
-                var addPassword = builder.Remove("Password");
-
-                var sanitisedConnectionString = builder.ConnectionString;
-                if (addPassword)
-                {
-                    sanitisedConnectionString = "Password=  ;" + sanitisedConnectionString;
-                }
-
-                connectionString = sanitisedConnectionString;
-            }
-
-            if (config.SettingPersistence == SettingPersistence.AllWithoutConnectionString)
-            {
-                package.RemoveMetadata("sql-import:connectionString");
-            }
-            else
-            {
-                package.AddMetadata("sql-import:connectionString", connectionString);
-            }
-
-            package.AddMetadata("sql-import:tableStereotypes", config.TableStereotype.ToString());
-            package.AddMetadata("sql-import:entityNameConvention", config.EntityNameConvention.ToString());
-            package.AddMetadata("sql-import:schemaFilter", config.SchemaFilter.Any() ? string.Join(";", config.SchemaFilter) : "");
-            package.AddMetadata("sql-import:tableViewFilterFilePath", config.TableViewFilterFilePath);
-            package.AddMetadata("sql-import:typesToExport", config.TypesToExport.Any() ? string.Join(";", config.TypesToExport.Select(t => t.ToString())) : "");
-            package.AddMetadata("sql-import:settingPersistence", config.SettingPersistence.ToString());
-            package.AddMetadata("sql-import:storedProcedureType", config.StoredProcedureType.ToString());
-        }
-        else
-        {
-            package.RemoveMetadata("sql-import:connectionString");
-            package.RemoveMetadata("sql-import:tableStereotypes");
-            package.RemoveMetadata("sql-import:entityNameConvention");
-            package.RemoveMetadata("sql-import:schemaFilter");
-            package.RemoveMetadata("sql-import:tableViewFilterFilePath");
-            package.RemoveMetadata("sql-import:typesToExport");
-            package.RemoveMetadata("sql-import:settingPersistence");
-            package.RemoveMetadata("sql-import:storedProcedureType");
-        }
 
         Console.WriteLine("Saving package...");
         package.Save();

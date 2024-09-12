@@ -26,9 +26,6 @@ public class ImportConfiguration
 	
 	public string? ConnectionString { get; set; }
 	public string? PackageFileName { get; set; }
-	
-
-	public SettingPersistence SettingPersistence { get; set; } = SettingPersistence.None;
 
 	internal IReadOnlyList<string> GetFilteredTableViewList()
 	{
@@ -86,14 +83,6 @@ public enum EntityNameConvention
 {
 	MatchTable,
 	SingularEntity
-}
-
-public enum SettingPersistence
-{
-	None,
-	AllSanitisedConnectionString,
-	AllWithoutConnectionString,
-	All
 }
 
 public enum StoredProcedureType
