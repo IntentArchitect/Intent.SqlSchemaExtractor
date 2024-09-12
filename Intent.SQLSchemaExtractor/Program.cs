@@ -116,6 +116,11 @@ public class Program
                     if (string.IsNullOrEmpty(config.PackageFileName))
                         throw new Exception($"{GetOptionName(nameof(ImportConfiguration.PackageFileName))} is mandatory or a --config-file with a package file name.");
 
+                    if (config.StoredProcedureType == StoredProcedureType.Default)
+                    {
+                        config.StoredProcedureType = StoredProcedureType.StoredProcedureElement;
+                    }
+                    
                     Run(config);
                 }
                 catch (Exception exception)
