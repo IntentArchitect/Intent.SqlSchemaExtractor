@@ -259,6 +259,15 @@ public class SqlServerSchemaExtractor
                 continue;
             }
 
+            if (_config.StoredProcNames?.Count > 0)
+            {
+                var storedProcLookup = new HashSet<string>(_config.StoredProcNames, StringComparer.OrdinalIgnoreCase);
+                if (!storedProcLookup.Contains(storedProc.Name) && !storedProcLookup.Contains($"{storedProc.Schema}.{storedProc.Name}"))
+                {
+                    continue;
+                }
+            }
+
             Console.WriteLine($"{storedProc.Name} ({++storedProceduresNumber}/{storedProceduresCount})");
 
             var modelStoredProcedure = _config.StoredProcedureType == StoredProcedureType.StoredProcedureElement 
@@ -266,7 +275,12 @@ public class SqlServerSchemaExtractor
                 : databaseSchemaToModelMapper.GetOrCreateStoredProcedureOperation(storedProc, _config.RepositoryElementId);
             
             var resultSet = StoredProcExtractor.GetStoredProcedureResultSet(_db, storedProc);
-            if (resultSet.TableCount == 1)
+            // This code tries to match the result to a Class-Table when only one Table is detected
+            // in the output. I'm disabling this for now since the StoredProc import would not
+            // export Class-Tables and thus results in empty Classes. We could adjust the ImportSettings
+            // to cater for this, but I think in general people would want DataContracts instead of Classes.
+            // So I'm keeping this here just in case it becomes a requirement.
+            /*if (resultSet.TableCount == 1)
             {
                 var table = GetFilteredTables().FirstOrDefault(p => p.ID == resultSet.TableIds[0]);
                 if (table is not null)
@@ -283,7 +297,8 @@ public class SqlServerSchemaExtractor
                     };
                 }
             }
-            else if (resultSet.TableCount > 1)
+            else if (resultSet.TableCount > 1)*/
+            if (resultSet.TableCount > 0)
             {
                 var dataContract = databaseSchemaToModelMapper.GetOrCreateDataContractResponse(storedProc);
                 modelStoredProcedure.TypeReference = new TypeReferencePersistable

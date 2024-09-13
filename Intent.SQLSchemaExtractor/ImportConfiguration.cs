@@ -23,6 +23,7 @@ public class ImportConfiguration
 	
 	public StoredProcedureType StoredProcedureType { get; set; } = StoredProcedureType.Default;
 	public string? RepositoryElementId { get; set; }
+	public List<string> StoredProcNames { get; set; } = [];
 	
 	public string? ConnectionString { get; set; }
 	public string? PackageFileName { get; set; }
