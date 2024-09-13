@@ -61,7 +61,6 @@ public class SqlServerSchemaExtractor
 
         if (_config.ExportStoredProcedures())
         {
-            ProcessUserDefinedTableTypes(modelSchemaHelper);
             ProcessStoredProcedures(eventManager, modelSchemaHelper);
         }
 
@@ -214,34 +213,6 @@ public class SqlServerSchemaExtractor
         }
     }
 
-    private void ProcessUserDefinedTableTypes(DatabaseSchemaToModelMapper databaseSchemaToModelMapper)
-    {
-        Console.WriteLine();
-        Console.WriteLine("User Defined Table Types");
-        Console.WriteLine("=======================");
-        Console.WriteLine();
-
-        var filteredUserDefinedTableTypes = GetFilteredUserDefinedTableTypes();
-        var userDefinedTableTypesCount = filteredUserDefinedTableTypes.Length;
-        var userDefinedTableTypesNumber = 0;
-        foreach (var userDefinedTableType in filteredUserDefinedTableTypes)
-        {
-            if (!_config.ExportSchema(userDefinedTableType.Schema))
-            {
-                continue;
-            }
-
-            Console.WriteLine($"{userDefinedTableType.Name} ({++userDefinedTableTypesNumber}/{userDefinedTableTypesCount})");
-
-            var modelDataContract = databaseSchemaToModelMapper.GetOrCreateDataContract(userDefinedTableType);
-            foreach (Column column in userDefinedTableType.Columns)
-            {
-                var attr = databaseSchemaToModelMapper.GetOrCreateAttribute(column, modelDataContract);
-                attr.TypeReference.TypeId = GetTypeId(column.DataType);
-            }
-        }
-    }
-
     private void ProcessStoredProcedures(SchemaExtractorEventManager eventManager, DatabaseSchemaToModelMapper databaseSchemaToModelMapper)
     {
         Console.WriteLine();
@@ -353,7 +324,18 @@ public class SqlServerSchemaExtractor
                 return null;
             }
 
-            return databaseSchemaToModelMapper.GetOrCreateDataContract(type).Id;
+            // Create the Data Contract on demand
+            var dataContract = databaseSchemaToModelMapper.GetOrCreateDataContract(type);
+            if (dataContract.ChildElements.Count == 0 && type.Columns.Count > 0)
+            {
+                foreach (Column column in type.Columns)
+                {
+                    var attr = databaseSchemaToModelMapper.GetOrCreateAttribute(column, dataContract);
+                    attr.TypeReference.TypeId = GetTypeId(column.DataType);
+                }
+            }
+
+            return dataContract.Id;
         }
     }
     
