@@ -43,7 +43,10 @@ internal static class StoredProcExtractor
                     return null!;
                 }
 
-                var tableId = (int?)tableIdResults.Tables[0].Rows[0]["TableID"];
+                var tableIdObject = tableIdResults.Tables[0].Rows[0]["TableID"];
+                var tableId = tableIdObject is not DBNull
+                    ? (int?)tableIdObject
+                    : null;
                 return group.Select(row => new { DataRow = row, TableId = tableId });
             })
             .Where(entry => entry is not null)

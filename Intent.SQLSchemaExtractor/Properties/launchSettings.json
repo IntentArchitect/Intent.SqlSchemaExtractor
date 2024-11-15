@@ -2,8 +2,7 @@
   "profiles": {
     "Intent.SQLSchemaExtractor": {
       "commandName": "Project",
-      // No need to alter this, there is a SqlServerImports app in Intent.Modules.NET
-      "commandLineArgs": "--serialized-config \"{\\\"ApplicationId\\\":\\\"a5bda094-e905-46f8-8348-5afef353db68\\\",\\\"DesignerId\\\":\\\"6ab29b31-27af-4f56-a67c-986d82097d63\\\",\\\"PackageId\\\":\\\"c5137fb3-11a7-4f59-9a42-74623ae698a3\\\",\\\"EntityNameConvention\\\":\\\"SingularEntity\\\",\\\"TableStereotypes\\\":\\\"WhenDifferent\\\",\\\"TypesToExport\\\":[\\\"Table\\\",\\\"View\\\",\\\"StoredProcedure\\\",\\\"Index\\\"],\\\"SchemaFilter\\\":[],\\\"TableViewFilterFilePath\\\":null,\\\"ConnectionString\\\":\\\"Server=.;Initial Catalog=SqlServerImporterTest;Integrated Security=false;MultipleActiveResultSets=True;Encrypt=False;User Id =sa;Password=IntentP@ssword123\\\",\\\"PackageFileName\\\":\\\"C:/Dev/Intent.Modules.NET/Tests/SqlServerImporterTests/Intent.Metadata/Domain/SqlServerImporterTests.Domain/SqlServerImporterTests.Domain.pkg.config\\\",\\\"SettingPersistence\\\":\\\"All\\\"}\" "
+      "commandLineArgs": "--serialized-config \"{\\\"ApplicationId\\\":\\\"80ca17ba-9d6f-43e2-acf9-893a66bbb72e\\\",\\\"DesignerId\\\":\\\"6ab29b31-27af-4f56-a67c-986d82097d63\\\",\\\"PackageId\\\":\\\"ddfe7a02-06e8-4fde-ba35-9bac4b47ff1c\\\",\\\"EntityNameConvention\\\":\\\"SingularEntity\\\",\\\"TableStereotype\\\":\\\"WhenDifferent\\\",\\\"TypesToExport\\\":[\\\"Table\\\",\\\"View\\\",\\\"StoredProcedure\\\",\\\"Index\\\"],\\\"SchemaFilter\\\":[],\\\"TableViewFilterFilePath\\\":null,\\\"StoredProcedureType\\\":\\\"Default\\\",\\\"ConnectionString\\\":\\\"Server=.;Initial Catalog=NvTest;Integrated Security=true;MultipleActiveResultSets=True;Encrypt=False\\\",\\\"PackageFileName\\\":\\\"D:/Dev/Spikes/Intent/SqlImportTest/intent/SqlImportTest/Intent.Metadata/Domain/SqlImportTest.Domain/SqlImportTest.Domain.pkg.config\\\",\\\"SettingPersistence\\\":3}\""
     }
   }
 }
