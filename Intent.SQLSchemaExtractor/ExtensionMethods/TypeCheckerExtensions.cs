@@ -6,6 +6,11 @@ namespace Intent.SQLSchemaExtractor.ExtensionMethods
 {
 	internal static class ExtensionMethods
 	{
+		public static bool IsEnum(this ElementPersistable element)
+		{
+			return DatabaseSchemaToModelMapper.EnumType.Id.Equals(element.SpecializationTypeId, StringComparison.OrdinalIgnoreCase);
+		}
+		
 		public static bool IsFolder(this ElementPersistable element)
 		{
 			return DatabaseSchemaToModelMapper.FolderType.Id.Equals(element.SpecializationTypeId, StringComparison.OrdinalIgnoreCase);

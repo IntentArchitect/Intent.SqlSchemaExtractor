@@ -30,6 +30,7 @@ public class DatabaseSchemaToModelMapper
     internal static readonly SpecializationType StoredProcedureParameterType = new("Stored Procedure Parameter", "5823b192-eb03-47c8-90d8-5501c922e9a5");
     internal static readonly SpecializationType OperationType = new("Operation", "e030c97a-e066-40a7-8188-808c275df3cb");
     internal static readonly SpecializationType ParameterType = new("Parameter", "00208d20-469d-41cb-8501-768fd5eb796b");
+    internal static readonly SpecializationType EnumType = new("Enum", "85fba0e9-9161-4c85-a603-a229ef312beb");
 
     private readonly ImportConfiguration _config;
     private readonly PackageModelPersistable _package;
@@ -87,6 +88,10 @@ public class DatabaseSchemaToModelMapper
         return package;
     }
 
+    public ElementPersistable? GetEnum(string id)
+    {
+        return _package.Classes.SingleOrDefault(x => x.Id == id && x.IsEnum());
+    }
 
     public ElementPersistable? GetClass(Table table)
     {

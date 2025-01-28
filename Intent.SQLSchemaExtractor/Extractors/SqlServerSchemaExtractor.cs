@@ -150,7 +150,17 @@ public class SqlServerSchemaExtractor
                 var attribute = databaseSchemaToModelMapper.GetOrCreateAttribute(col, @class);
 
                 var typeId = GetTypeId(col.DataType);
-                attribute.TypeReference.TypeId = typeId;
+
+                // Developers would like to have Enums defined on Attributes where the underlying SQL type
+                // is a numeric type like int, bit, etc. so don't overwrite in those cases since the importer
+                // itself cannot introduce Enums (yet).
+                if (databaseSchemaToModelMapper.GetEnum(attribute.TypeReference.TypeId) is null ||
+                    (col.DataType.SqlDataType != SqlDataType.Int &&
+                     col.DataType.SqlDataType != SqlDataType.SmallInt &&
+                     col.DataType.SqlDataType != SqlDataType.Bit))
+                {
+                    attribute.TypeReference.TypeId = typeId;
+                }
 
                 foreach (var handler in eventManager.OnTableColumnHandlers)
                 {
