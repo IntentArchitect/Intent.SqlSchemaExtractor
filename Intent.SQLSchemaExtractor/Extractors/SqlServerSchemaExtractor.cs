@@ -154,7 +154,8 @@ public class SqlServerSchemaExtractor
                 // Developers would like to have Enums defined on Attributes where the underlying SQL type
                 // is a numeric type like int, bit, etc. so don't overwrite in those cases since the importer
                 // itself cannot introduce Enums (yet).
-                if (databaseSchemaToModelMapper.GetEnum(attribute.TypeReference.TypeId) is null ||
+                if (attribute.TypeReference.TypeId is null ||
+                    databaseSchemaToModelMapper.GetEnum(attribute.TypeReference.TypeId) is null ||
                     (col.DataType.SqlDataType != SqlDataType.Int &&
                      col.DataType.SqlDataType != SqlDataType.SmallInt &&
                      col.DataType.SqlDataType != SqlDataType.Bit))
