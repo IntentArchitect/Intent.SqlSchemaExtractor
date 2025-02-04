@@ -18,7 +18,6 @@ public class SqlServerSchemaExtractor
     private readonly ImportConfiguration _config;
     private readonly List<string> _tablesToIgnore = ["sysdiagrams", "__MigrationHistory", "__EFMigrationsHistory"];
     private readonly List<string> _viewsToIgnore = [];
-    private readonly HashSet<string> _tableViewsFilter;
 
     public string SchemaVersion => "2.0";
 
@@ -26,7 +25,6 @@ public class SqlServerSchemaExtractor
     {
         _db = db;
         _config = config;
-        _tableViewsFilter = new HashSet<string>(_config.GetFilteredTableViewList(), StringComparer.InvariantCultureIgnoreCase);
     }
 
     public PackageModelPersistable BuildPackageModel(string packageNameOrPath, SchemaExtractorEventManager eventManager)
@@ -144,9 +142,13 @@ public class SqlServerSchemaExtractor
             {
                 handler(_config, table, @class);
             }
-
+            
             foreach (Column col in table.Columns)
             {
+                if (!_config.ExportTableColumn(table.Name, col.Name))
+                {
+                    continue;
+                }
                 var attribute = databaseSchemaToModelMapper.GetOrCreateAttribute(col, @class);
 
                 var typeId = GetTypeId(col.DataType);
@@ -211,6 +213,10 @@ public class SqlServerSchemaExtractor
 
             foreach (Column col in view.Columns)
             {
+                if (!_config.ExportViewColumn(view.Name, col.Name))
+                {
+                    continue;
+                }
                 var attribute = databaseSchemaToModelMapper.GetOrCreateAttribute(col, @class);
 
                 var typeId = GetTypeId(col.DataType);
@@ -236,7 +242,7 @@ public class SqlServerSchemaExtractor
         var storedProceduresNumber = 0;
         foreach (var storedProc in filteredStoredProcedures)
         {
-            if (!_config.ExportSchema(storedProc.Schema))
+            if (!_config.ExportSchema(storedProc.Schema) || !_config.ExportStoredProcedure(storedProc.Name))
             {
                 continue;
             }
@@ -355,7 +361,7 @@ public class SqlServerSchemaExtractor
     private Table[] GetFilteredTables()
     {
         return _cachedFilteredTables ??= _db.Tables.OfType<Table>()
-            .Where(table => !_tablesToIgnore.Contains(table.Name) && _config.ExportSchema(table.Schema) && IncludeTableView(table.Name))
+            .Where(table => !_tablesToIgnore.Contains(table.Name) && _config.ExportSchema(table.Schema) && IncludeTable(table.Name))
             .ToArray();
     }
     
@@ -367,13 +373,18 @@ public class SqlServerSchemaExtractor
             .Where(view => view.Schema is not "sys" and not "INFORMATION_SCHEMA" &&
                            !_viewsToIgnore.Contains(view.Name) &&
                            _config.ExportSchema(view.Schema) &&
-                           IncludeTableView(view.Name))
+                           IncludeView(view.Name))
             .ToArray();
     }
     
-    private bool IncludeTableView(string tableOrViewName)
+    private bool IncludeTable(string tableName)
     {
-        return _tableViewsFilter.Count == 0 || _tableViewsFilter.Contains(tableOrViewName);
+        return _config.ExportTable(tableName);
+    }
+    
+    private bool IncludeView(string viewName)
+    {
+        return _config.ExportView(viewName);
     }
 
     private StoredProcedure[]? _cachedFilteredStoredProcedures;

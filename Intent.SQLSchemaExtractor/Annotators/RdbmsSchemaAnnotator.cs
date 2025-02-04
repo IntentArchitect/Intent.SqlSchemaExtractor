@@ -272,7 +272,7 @@ internal static class RdbmsSchemaAnnotator
         }
     }
 
-    public static void ApplyIndex(ImportConfiguration config ,Index index, ElementPersistable @class, DatabaseSchemaToModelMapper databaseSchemaToModelMapper)
+    public static void ApplyIndex(ImportConfiguration config, Index index, ElementPersistable @class, DatabaseSchemaToModelMapper databaseSchemaToModelMapper)
     {
 		if (index.Parent is Table table)
 		{

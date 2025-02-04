@@ -13,7 +13,7 @@ Latest Long Term Support (LTS) version of [.NET](https://dotnet.microsoft.com/do
 The tool is available as a [.NET Tool](https://docs.microsoft.com/dotnet/core/tools/global-tools) and can be installed with the following command:
 
 ```powershell
-dotnet tool install Intent.SQLSchemaExtractor --global --prerelease
+dotnet tool install Intent.SQLSchemaExtractor --global
 ```
 
 > [!NOTE]

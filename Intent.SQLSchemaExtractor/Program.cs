@@ -58,6 +58,9 @@ public class Program
                 name: GetOptionName(nameof(ImportConfiguration.PackageFileName)),
                 description: "The file name of the Intent Domain Package into which to synchronize the metadata."),
             new Option<string?>(
+                name: GetOptionName(nameof(ImportConfiguration.ImportFilterFilePath)),
+                description: $"Path to import filter file (may be relative to {nameof(ImportConfiguration.PackageFileName)} file)"),
+            new Option<string?>(
                 name: GetOptionName(nameof(ImportConfiguration.SerializedConfig)),
                 description: "JSON string representing a serialized configuration file.")
         };
@@ -68,6 +71,7 @@ public class Program
                 bool generateConfigFile,
                 string? connectionString,
                 string? packageFileName,
+                string? importFilterFilePath,
                 string? serializedConfig
             ) =>
             {
@@ -108,7 +112,8 @@ public class Program
                         config.ConnectionString = connectionString;
                     if (packageFileName != null)
                         config.PackageFileName = packageFileName;
-
+                    if (importFilterFilePath != null)
+                        config.ImportFilterFilePath = importFilterFilePath;
 
                     if (string.IsNullOrEmpty(config.ConnectionString))
                         throw new Exception($"{GetOptionName(nameof(ImportConfiguration.ConnectionString))} is mandatory or a --config-file with a connection string.");
@@ -119,6 +124,12 @@ public class Program
                     if (config.StoredProcedureType == StoredProcedureType.Default)
                     {
                         config.StoredProcedureType = StoredProcedureType.StoredProcedureElement;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(config.ImportFilterFilePath) &&
+                        !Path.IsPathRooted(config.ImportFilterFilePath))
+                    {
+                        config.ImportFilterFilePath = Path.Combine(Path.GetDirectoryName(config.PackageFileName)!, config.ImportFilterFilePath);
                     }
                     
                     Run(config);
