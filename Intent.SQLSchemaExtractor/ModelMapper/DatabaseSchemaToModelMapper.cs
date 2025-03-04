@@ -151,7 +151,7 @@ public class DatabaseSchemaToModelMapper
             @class.ChildElements.Add(element = new ElementPersistable
             {
                 Id = Guid.NewGuid().ToString(),
-                Name = elementIdentity.Name,
+                Name = elementIdentity.Name.ToSanitized()?.ToPascalCase(),
                 SpecializationTypeId = AttributeType.Id,
                 SpecializationType = AttributeType.Name,
                 Stereotypes = [],
@@ -323,7 +323,7 @@ public class DatabaseSchemaToModelMapper
                 {
                     //Keep this the same as association Id
                     Id = associationId,
-                    Name = targetName,
+                    Name = targetName.Equals(table.Name.Singularize(false), StringComparison.InvariantCultureIgnoreCase) ? $"{targetName}Reference" : targetName,
                     TypeReference = new TypeReferencePersistable
                     {
                         Id = Guid.NewGuid().ToString(),
