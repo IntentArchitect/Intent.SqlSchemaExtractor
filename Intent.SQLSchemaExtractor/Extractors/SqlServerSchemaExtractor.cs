@@ -8,7 +8,6 @@ using Intent.IArchitect.Agent.Persistence.Model.Common;
 using Intent.SQLSchemaExtractor.ExtensionMethods;
 using Intent.SQLSchemaExtractor.ModelMapper;
 using Microsoft.SqlServer.Management.Smo;
-using Index = Microsoft.SqlServer.Management.Smo.Index;
 
 namespace Intent.SQLSchemaExtractor.Extractors;
 
@@ -106,7 +105,7 @@ public class SqlServerSchemaExtractor
                 continue;
             }
 
-            foreach (Index tableIndex in table.Indexes)
+            foreach (Microsoft.SqlServer.Management.Smo.Index tableIndex in table.Indexes)
             {
                 if (tableIndex.IsClustered)
                 {
@@ -141,6 +140,11 @@ public class SqlServerSchemaExtractor
             foreach (var handler in eventManager.OnTableHandlers)
             {
                 handler(_config, table, @class);
+            }
+
+            foreach(Trigger trig in table.Triggers)
+            {
+                _ = databaseSchemaToModelMapper.GetOrCreateTrigger(trig, @class);
             }
             
             foreach (Column col in table.Columns)
@@ -209,6 +213,11 @@ public class SqlServerSchemaExtractor
             foreach (var handler in eventManager.OnViewHandlers)
             {
                 handler(view, @class);
+            }
+
+            foreach (Trigger trig in view.Triggers)
+            {
+                _ = databaseSchemaToModelMapper.GetOrCreateTrigger(trig, @class);
             }
 
             foreach (Column col in view.Columns)
@@ -355,7 +364,7 @@ public class SqlServerSchemaExtractor
             return dataContract.Id;
         }
     }
-    
+
     private Table[]? _cachedFilteredTables;
 
     private Table[] GetFilteredTables()
@@ -376,7 +385,7 @@ public class SqlServerSchemaExtractor
                            IncludeView(view.Name))
             .ToArray();
     }
-    
+
     private bool IncludeTable(string tableName)
     {
         return _config.ExportTable(tableName);

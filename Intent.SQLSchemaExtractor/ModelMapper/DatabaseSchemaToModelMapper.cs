@@ -1,14 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using Intent.IArchitect.Agent.Persistence.Model;
+﻿using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
 using Intent.Modules.Common.Templates;
 using Intent.SQLSchemaExtractor.ExtensionMethods;
 using Intent.SQLSchemaExtractor.Extractors;
 using Microsoft.SqlServer.Management.Smo;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
 
 namespace Intent.SQLSchemaExtractor.ModelMapper;
 
@@ -31,6 +31,7 @@ public class DatabaseSchemaToModelMapper
     internal static readonly SpecializationType OperationType = new("Operation", "e030c97a-e066-40a7-8188-808c275df3cb");
     internal static readonly SpecializationType ParameterType = new("Parameter", "00208d20-469d-41cb-8501-768fd5eb796b");
     internal static readonly SpecializationType EnumType = new("Enum", "85fba0e9-9161-4c85-a603-a229ef312beb");
+    internal static readonly SpecializationType TriggerType = new("Trigger", "5b7b5e77-e627-464b-a157-6d01f2042641");
 
     private readonly ImportConfiguration _config;
     private readonly PackageModelPersistable _package;
@@ -163,6 +164,36 @@ public class DatabaseSchemaToModelMapper
                     Stereotypes = [],
                     GenericTypeParameters = []
                 },
+                ExternalReference = elementIdentity.ExternalReference
+            });
+        }
+
+        element.ExternalReference = elementIdentity.ExternalReference;
+        return element;
+    }
+
+    public ElementPersistable GetOrCreateTrigger(Trigger trigger, ElementPersistable @class)
+    {
+        return InternalGetOrCreateTrigger(GetIdentity(trigger), @class);
+    }
+
+    private ElementPersistable InternalGetOrCreateTrigger(ElementIdentity elementIdentity, ElementPersistable @class)
+    {
+        var element = _package.ChildElements.SingleOrDefault(x => x.ExternalReference == elementIdentity.ExternalReference && x.IsTrigger());
+        if (element is null)
+        {
+            element = _package.ChildElements.SingleOrDefault(x => x.Name == elementIdentity.Name && x.IsTrigger());
+        }
+
+        if (element is null)
+        {
+            @class.ChildElements.Add(element = new ElementPersistable
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = elementIdentity.Name,
+                SpecializationTypeId = TriggerType.Id,
+                SpecializationType = TriggerType.Name,
+                Stereotypes = [],
                 ExternalReference = elementIdentity.ExternalReference
             });
         }
@@ -777,7 +808,15 @@ public class DatabaseSchemaToModelMapper
             GetStoredProcedureName(storedProcedure)
         );
     }
-    
+
+    private static ElementIdentity GetIdentity(Trigger trigger)
+    {
+        return new ElementIdentity(
+            GetTriggerExternal(trigger),
+            GetTriggerName(trigger)
+        );
+    }
+
     private static ElementIdentity GetIdentity(UserDefinedTableType userDefinedTableType)
     {
         return new ElementIdentity(
@@ -815,6 +854,21 @@ public class DatabaseSchemaToModelMapper
         return $"[{storedProcedure.Schema}].[{storedProcedure.Name}]".ToLower();
     }
 
+    private static string GetTriggerExternal(Trigger trigger)
+    {
+        return trigger.Parent switch
+        {
+            Table table => $"trigger:[{table.Schema}].[{table.Name}].[{trigger.Name}]".ToLower(),
+            View view => $"trigger:[{view.Schema}].[{view.Name}].[{trigger.Name}]".ToLower(),
+            _ => throw new Exception($"Unknown parent type : {trigger.Parent}")
+        };
+    }
+
+    private static string GetTriggerName(Trigger trigger)
+    {
+        return trigger.Name;
+    }
+
     private static string GetForeignKeyExternal(ForeignKey foreignKey)
     {
         return $"[{foreignKey.Parent.Schema}].[{foreignKey.Parent.Name}].[{foreignKey.Name}]".ToLower();
@@ -850,7 +904,6 @@ public class DatabaseSchemaToModelMapper
     {
         return $"[{schema}].[{name}]".ToLower();
     }
-
 
     private static string GetAttributeName(Column column, ElementPersistable @class)
     {

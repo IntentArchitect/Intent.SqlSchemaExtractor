@@ -51,5 +51,10 @@ namespace Intent.SQLSchemaExtractor.ExtensionMethods
 			return DatabaseSchemaToModelMapper.StoredProcedureParameterType.Id.Equals(element.SpecializationTypeId, StringComparison.OrdinalIgnoreCase);
 		}
 
-	}
+        public static bool IsTrigger(this ElementPersistable element)
+        {
+            return DatabaseSchemaToModelMapper.TriggerType.Id.Equals(element.SpecializationTypeId, StringComparison.OrdinalIgnoreCase);
+        }
+
+    }
 }
