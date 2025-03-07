@@ -115,6 +115,11 @@ public class Program
                     if (importFilterFilePath != null)
                         config.ImportFilterFilePath = importFilterFilePath;
 
+                    if(!config.ValidateFilterFile())
+                    {
+                        return;
+                    }
+
                     if (string.IsNullOrEmpty(config.ConnectionString))
                         throw new Exception($"{GetOptionName(nameof(ImportConfiguration.ConnectionString))} is mandatory or a --config-file with a connection string.");
 

@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Json.Schema;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
+using System.Text.Json.Nodes;
 
 namespace Intent.SQLSchemaExtractor;
 
@@ -87,15 +89,17 @@ public class ImportConfiguration
 
 	internal bool ExportTableColumn(string tableName, string colName)
 	{
-		var table = GetImportFilterSettings().IncludeTables.FirstOrDefault(x => x.Name == tableName);
-		return table?.ExcludeColumns.Contains(colName) != true;
+		var filterSettings = GetImportFilterSettings();
+        var table = filterSettings.IncludeTables.FirstOrDefault(x => x.Name == tableName);
+		return table?.ExcludeColumns.Contains(colName) != true && filterSettings.ExcludedTableColumns.Contains(colName) != true;
 	}
 
 	internal bool ExportViewColumn(string viewName, string colName)
 	{
-		var view = GetImportFilterSettings().IncludeViews.FirstOrDefault(x => x.Name == viewName);
-		return view?.ExcludeColumns.Contains(colName) != true;
-	}
+        var filterSettings = GetImportFilterSettings();
+        var view = filterSettings.IncludeViews.FirstOrDefault(x => x.Name == viewName);
+		return view?.ExcludeColumns.Contains(colName) != true && filterSettings.ExcludedViewColumns.Contains(colName) != true;
+    }
 
 	internal bool ExportStoredProcedure(string storedProcedureName)
 	{
@@ -127,6 +131,44 @@ public class ImportConfiguration
 	{
 		return TypesToExport.Contains(ExportType.StoredProcedure);
 	}
+
+	internal bool ValidateFilterFile()
+	{
+        if (string.IsNullOrWhiteSpace(ImportFilterFilePath))
+        {
+			return true;
+        }
+
+        var jsonContent = File.ReadAllText(ImportFilterFilePath);
+		var jsonSchema = JsonSchema.FromFile("Resources/filter-file-schema.json");
+
+        var options = new EvaluationOptions
+        {
+			AddAnnotationForUnknownKeywords = true,
+			OutputFormat = OutputFormat.List
+        };
+
+        var result = jsonSchema.Evaluate(JsonNode.Parse(jsonContent), options);
+        if (!result.IsValid)
+        {
+			Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("The Import Filter File failed schema validation");
+			Console.WriteLine("");
+            foreach (var detail in result.Details.Where(d => d.HasErrors))
+			{
+                Console.WriteLine($"Error at path: {detail.EvaluationPath}");
+                foreach (var error in detail?.Errors)
+                {
+                    Console.WriteLine($"  - {error.Key}: {error.Value}");
+                }
+            }
+
+			Console.ResetColor();
+            return false;
+        }
+
+		return true;
+    }
 }
 
 public enum ExportType
@@ -178,6 +220,12 @@ class ImportFilterSettings
 	
 	[JsonProperty("exclude_stored_procedures")]
 	public List<string> ExcludeStoredProcedures { get; set; } = new();
+
+    [JsonProperty("exclude_table_columns")]
+    public HashSet<string> ExcludedTableColumns { get; set; } = new();
+
+    [JsonProperty("exclude_view_columns")]
+    public HashSet<string> ExcludedViewColumns { get; set; } = new();
 }
 
 class ImportFilterTable

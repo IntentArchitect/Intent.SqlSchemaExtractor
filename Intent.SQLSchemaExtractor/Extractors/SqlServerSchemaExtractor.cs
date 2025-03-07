@@ -131,6 +131,9 @@ public class SqlServerSchemaExtractor
         var tableCount = filteredTables.Length;
         var tableNumber = 0;
 
+        OutputMissingIncludedObjects(filteredTables.Select(t => t.Name).ToList(), OutputItemType.Tables);
+        OutputMissingExcludedColumns(filteredTables);
+
         foreach (var table in filteredTables)
         {
             var @class = databaseSchemaToModelMapper.GetOrCreateClass(table);
@@ -204,6 +207,10 @@ public class SqlServerSchemaExtractor
         var filteredViews = GetFilteredViews();
         var viewsCount = filteredViews.Length;
         var viewNumber = 0;
+
+        OutputMissingIncludedObjects(filteredViews.Select(t => t.Name).ToList(), OutputItemType.Views);
+        OutputMissingExcludedColumns(filteredViews);
+
         foreach (var view in filteredViews)
         {
             var @class = databaseSchemaToModelMapper.GetOrCreateClass(view);
@@ -249,6 +256,9 @@ public class SqlServerSchemaExtractor
         var filteredStoredProcedures = GetFilteredStoredProcedures();
         var storedProceduresCount = filteredStoredProcedures.Length;
         var storedProceduresNumber = 0;
+
+        OutputMissingIncludedObjects(filteredStoredProcedures.Select(t => t.Name).ToList(), OutputItemType.StoredProcedures);
+
         foreach (var storedProc in filteredStoredProcedures)
         {
             if (!_config.ExportSchema(storedProc.Schema) || !_config.ExportStoredProcedure(storedProc.Name))
@@ -373,7 +383,148 @@ public class SqlServerSchemaExtractor
             .Where(table => !_tablesToIgnore.Contains(table.Name) && _config.ExportSchema(table.Schema) && IncludeTable(table.Name))
             .ToArray();
     }
-    
+
+    private void OutputMissingIncludedObjects(List<string> foundItems, OutputItemType outputType)
+    {
+        List<string> includedItems = GetIncludedObjects(outputType);
+        var missingItems = includedItems.Except(foundItems).ToList();
+
+        if (missingItems.Count != 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"Explicitly included {outputType} not found:");
+        }
+
+        foreach (var table in missingItems)
+        {
+            Console.WriteLine($"* {table}");
+        }
+
+        if (missingItems.Count != 0)
+        {
+            Console.WriteLine("");
+            Console.ResetColor();
+        }
+    }
+
+    private List<string> GetIncludedObjects(OutputItemType outputType) => outputType switch
+    {
+        OutputItemType.Tables => _config.GetImportFilterSettings().IncludeTables.Select(table => table.Name).ToList(),
+        OutputItemType.Views => _config.GetImportFilterSettings().IncludeViews.Select(view => view.Name).ToList(),
+        OutputItemType.StoredProcedures => _config.GetImportFilterSettings().IncludeStoredProcedures.Select(storedProc => storedProc).ToList(),
+        _ => throw new NotImplementedException(),
+    };
+
+    private void OutputMissingExcludedColumns(Table[] filteredTables)
+    {
+        var filteredItems = filteredTables
+            .ToDictionary(k => k.Name, v => v.Columns.Cast<Column>().Select(c => c.Name).ToHashSet());
+
+        OutputMissingExcludedColumns(filteredItems, OutputItemType.Tables);
+    }
+
+    private void OutputMissingExcludedColumns(View[] filteredViews)
+    {
+        var filteredItems = filteredViews
+            .ToDictionary(k => k.Name, v => v.Columns.Cast<Column>().Select(c => c.Name).ToHashSet());
+
+        OutputMissingExcludedColumns(filteredItems, OutputItemType.Views);
+    }
+
+    private void OutputMissingExcludedColumns(Dictionary<string, HashSet<string>> foundItems, OutputItemType outputType)
+    {
+        var excludedItems = GetExcludedItemColumns(outputType);
+
+        var missingItems = excludedItems
+            .Where(e => foundItems.ContainsKey(e.Key))
+            .Select(a => new
+            {
+                Table = a.Key,
+                MissingColumns = a.Value.Except(foundItems[a.Key]).ToList()
+            })
+            .Where(a => a.MissingColumns.Count != 0) 
+            .ToDictionary(a => a.Table, a => a.MissingColumns);
+
+        if (missingItems.Count != 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"Explicitly excluded Columns not Found:");
+        }
+
+        foreach (var record in missingItems)
+        {
+            Console.WriteLine($"* {record.Key}");
+            foreach(var column in record.Value)
+            {
+                Console.WriteLine($"  - {column}");
+            }
+        }
+
+        if (missingItems.Count != 0)
+        {
+            Console.WriteLine("");
+            Console.ResetColor();
+        }
+    }
+
+    private Dictionary<string, HashSet<string>> GetExcludedItemColumns(OutputItemType outputType) => outputType switch
+    {
+        OutputItemType.Tables => _config.GetImportFilterSettings().IncludeTables.Distinct().ToDictionary(t => t.Name, t => t.ExcludeColumns),
+        OutputItemType.Views => _config.GetImportFilterSettings().IncludeViews.Distinct().ToDictionary(t => t.Name, t => t.ExcludeColumns),
+        _ => throw new NotImplementedException(),
+    };
+
+    //private void OutputMissingExcludedColumns()
+    //{
+    //    var foundTables = GetFilteredTables();
+
+    //    var filterSettings = _config.GetImportFilterSettings();
+    //    // store the table and its missing columns
+    //    var missingTableColumns = new Dictionary<string, List<string>>();
+
+    //    foreach (var table in foundTables)
+    //    {
+    //        // get the import record for the table found in the database
+    //        var includedTableSetting = filterSettings.IncludeTables.FirstOrDefault(t => t.Name == table.Name);
+
+    //        // this should never be true, but added it for extra safety
+    //        if(includedTableSetting == null)
+    //        {
+    //            continue;
+    //        }
+
+    //        // columns which were specifically excluded, but which could not be found in the table on the database
+    //        var tableExcludedMissing = includedTableSetting.ExcludeColumns.Except(table.Columns.Cast<Column>().Select(c => c.Name)).ToList();
+
+    //        if(tableExcludedMissing.Count != 0 && !missingTableColumns.ContainsKey(table.Name))
+    //        {
+    //            missingTableColumns.Add(table.Name, tableExcludedMissing);
+    //        }
+
+    //    }
+
+    //    if (missingTableColumns.Count != 0)
+    //    {
+    //        Console.ForegroundColor = ConsoleColor.Yellow;
+    //        Console.WriteLine("Explicitly Excluded Columns Not Found:");
+    //    }
+
+    //    foreach (var table in missingTableColumns)
+    //    {
+    //        Console.WriteLine($"* {table.Key}");
+    //        foreach(var column in table.Value)
+    //        {
+    //            Console.WriteLine($"  -{column}");
+    //        }
+    //    }
+
+    //    if (missingTableColumns.Count != 0)
+    //    {
+    //        Console.WriteLine("");
+    //        Console.ResetColor();
+    //    }
+    //}
+
     private View[]? _cachedFilteredViews;
 
     private View[] GetFilteredViews()
@@ -510,5 +661,12 @@ public class SqlServerSchemaExtractor
                 Logging.LogWarning($"Unknown column type: {dataType.ToString()}");
                 return null;
         }
+    }
+
+    private enum OutputItemType
+    {
+        Tables,
+        Views,
+        StoredProcedures
     }
 }
