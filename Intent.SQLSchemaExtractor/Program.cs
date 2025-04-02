@@ -161,9 +161,12 @@ public class Program
     {
         var connection = new SqlConnection(config.ConnectionString);
         connection.Open();
-        var db = new Server(new ServerConnection(connection)).Databases[connection.Database];
-        
-        var package = new SqlServerSchemaExtractor(config, db).BuildPackageModel(config.PackageFileName!, new SchemaExtractorEventManager
+        var server = new Server(new ServerConnection(connection));
+        var db = server.Databases[connection.Database];
+        var extractor = new SqlServerSchemaExtractor(config, db, server);
+
+
+        var package = extractor.BuildPackageModel(config.PackageFileName!, new SchemaExtractorEventManager
         {
             OnTableHandlers = new[]
             {
@@ -219,13 +222,17 @@ public class Program
             Module = "Intent.EntityFrameworkCore",
             IsExternal = true
         });
-        package.References.Add(new PackageReferenceModel
+
+        if (extractor.Statistics.StoredProcedureCount > 0 || config.ExportStoredProcedures())
         {
-            PackageId = "5869084c-2a08-4e40-a5c9-ff26220470c8",
-            Name = "Intent.EntityFrameworkCore.Repositories",
-            Module = "Intent.EntityFrameworkCore.Repositories",
-            IsExternal = true
-        });
+            package.References.Add(new PackageReferenceModel
+            {
+                PackageId = "5869084c-2a08-4e40-a5c9-ff26220470c8",
+                Name = "Intent.EntityFrameworkCore.Repositories",
+                Module = "Intent.EntityFrameworkCore.Repositories",
+                IsExternal = true
+            });
+        }
 
         Console.WriteLine("Saving package...");
         package.Save();

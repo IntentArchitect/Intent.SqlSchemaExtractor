@@ -7,6 +7,7 @@ using Intent.IArchitect.Agent.Persistence.Model;
 using Intent.IArchitect.Agent.Persistence.Model.Common;
 using Intent.SQLSchemaExtractor.ExtensionMethods;
 using Intent.SQLSchemaExtractor.ModelMapper;
+using Intent.SQLSchemaExtractor.Models;
 using Microsoft.SqlServer.Management.Smo;
 
 namespace Intent.SQLSchemaExtractor.Extractors;
@@ -14,15 +15,20 @@ namespace Intent.SQLSchemaExtractor.Extractors;
 public class SqlServerSchemaExtractor
 {
     private readonly Database _db;
+    private readonly Server _server;
     private readonly ImportConfiguration _config;
     private readonly List<string> _tablesToIgnore = ["sysdiagrams", "__MigrationHistory", "__EFMigrationsHistory"];
     private readonly List<string> _viewsToIgnore = [];
+    private readonly ExtractStatistics _extractStats = new ExtractStatistics();
 
     public string SchemaVersion => "2.0";
 
-    public SqlServerSchemaExtractor(ImportConfiguration config, Database db)
+    public ExtractStatistics Statistics => _extractStats;
+
+    public SqlServerSchemaExtractor(ImportConfiguration config, Database db, Server server)
     {
         _db = db;
+        _server = server;
         _config = config;
     }
 
@@ -116,6 +122,8 @@ public class SqlServerSchemaExtractor
                 {
                     handler(_config, tableIndex, @class, databaseSchemaToModelMapper);
                 }
+
+                _extractStats.IndexCount++;
             }
         }
     }
@@ -130,6 +138,7 @@ public class SqlServerSchemaExtractor
         var filteredTables = GetFilteredTables();
         var tableCount = filteredTables.Length;
         var tableNumber = 0;
+        _extractStats.TableCount = tableCount;
 
         OutputMissingIncludedObjects(filteredTables.Select(t => t.Name).ToList(), OutputItemType.Tables);
         OutputMissingExcludedColumns(filteredTables);
@@ -193,6 +202,7 @@ public class SqlServerSchemaExtractor
             foreach (ForeignKey foreignKey in table.ForeignKeys)
             {
                 databaseSchemaToModelMapper.GetOrCreateAssociation(foreignKey);
+                _extractStats.ForeignKeyCount++;
             }
         }
     }
@@ -207,6 +217,7 @@ public class SqlServerSchemaExtractor
         var filteredViews = GetFilteredViews();
         var viewsCount = filteredViews.Length;
         var viewNumber = 0;
+        _extractStats.ViewCount = viewsCount;
 
         OutputMissingIncludedObjects(filteredViews.Select(t => t.Name).ToList(), OutputItemType.Views);
         OutputMissingExcludedColumns(filteredViews);
@@ -256,6 +267,7 @@ public class SqlServerSchemaExtractor
         var filteredStoredProcedures = GetFilteredStoredProcedures();
         var storedProceduresCount = filteredStoredProcedures.Length;
         var storedProceduresNumber = 0;
+        _extractStats.StoredProcedureCount = storedProceduresCount;
 
         OutputMissingIncludedObjects(filteredStoredProcedures.Select(t => t.Name).ToList(), OutputItemType.StoredProcedures);
 
@@ -379,9 +391,69 @@ public class SqlServerSchemaExtractor
 
     private Table[] GetFilteredTables()
     {
-        return _cachedFilteredTables ??= _db.Tables.OfType<Table>()
+        // storing this so we can know if we need to call GetDependantTables or not 
+        var firstTimeExecuting = _cachedFilteredTables is null;
+
+        _cachedFilteredTables ??= _db.Tables.OfType<Table>()
             .Where(table => !_tablesToIgnore.Contains(table.Name) && _config.ExportSchema(table.Schema) && IncludeTable(table.Name))
             .ToArray();
+
+        // if this is the first time running
+        if(firstTimeExecuting)
+        {
+            _cachedFilteredTables = [.. _cachedFilteredTables, .. GetDependantTables()];
+        }
+
+        return _cachedFilteredTables;
+    }
+
+    private Table[] GetDependantTables() 
+    {
+        if(!_config.IncludeDependantTables())
+        {
+            return [];
+        }
+
+        var dependencyWalker = new DependencyWalker(_server);
+        var dependencyTree = dependencyWalker.DiscoverDependencies(_cachedFilteredTables?.Select(t => t.Urn).ToArray(), DependencyType.Children);
+
+        // traverse through the dependencies
+        HashSet<Table> dependentTables = [];
+        TraverseDependencyTree(dependencyTree.FirstChild, dependentTables);
+
+        return [.. dependentTables];
+    }
+
+    private void TraverseDependencyTree(DependencyTreeNode node, HashSet<Table> dependentTables)
+    {
+        if (node == null)
+            return;
+
+        // Only collect table dependencies
+        if (node.Urn.Type == "Table")
+        {
+            var tableName = node.Urn.GetAttribute("Name");
+            var tableSchema = node.Urn.GetAttribute("Schema");
+
+            var table = _db.Tables.OfType<Table>().FirstOrDefault(t => t.Schema == tableSchema && t.Name == tableName);
+            if(table != null && _config.ExportDependantTable(tableSchema, tableName) && !_cachedFilteredTables.Contains(table))
+            {
+                dependentTables.Add(table);
+            }
+        }
+
+        // get children
+        TraverseDependencyTree(node.FirstChild, dependentTables);
+
+        if (node.NumberOfSiblings != 0)
+        {
+            var currentNode = node.NextSibling;
+            while (currentNode != null)
+            {
+                TraverseDependencyTree(currentNode, dependentTables);
+                currentNode = currentNode.NextSibling;
+            }
+        }
     }
 
     private void OutputMissingIncludedObjects(List<string> foundItems, OutputItemType outputType)
@@ -541,7 +613,7 @@ public class SqlServerSchemaExtractor
     {
         return _config.ExportTable(tableName);
     }
-    
+           
     private bool IncludeView(string viewName)
     {
         return _config.ExportView(viewName);

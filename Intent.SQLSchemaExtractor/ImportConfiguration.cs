@@ -65,7 +65,15 @@ public class ImportConfiguration
 		return settings.Schemas.Count == 0 || settings.Schemas.Contains(schema);
 	}
 
-	internal bool ExportTable(string tableName)
+	internal bool IncludeDependantTables()
+	{
+        var settings = GetImportFilterSettings();
+
+		return settings.IncludeDependantTables;
+    }
+
+
+    internal bool ExportTable(string tableName)
 	{
 		var settings = GetImportFilterSettings();
 		if (settings.ExcludeTables.Contains(tableName))
@@ -75,6 +83,22 @@ public class ImportConfiguration
 
 		return settings.IncludeTables.Count == 0 || settings.IncludeTables.Any(x => x.Name == tableName);
 	}
+
+	internal bool ExportDependantTable(string schema, string tableName)
+	{
+		if (!ExportSchema(schema))
+		{
+			return false;
+		}
+
+        var settings = GetImportFilterSettings();
+        if (settings.ExcludeTables.Contains(tableName))
+        {
+            return false;
+        }
+
+		return true;
+    }
 
 	internal bool ExportView(string viewName)
 	{
@@ -145,7 +169,8 @@ public class ImportConfiguration
         var options = new EvaluationOptions
         {
 			AddAnnotationForUnknownKeywords = true,
-			OutputFormat = OutputFormat.List
+			OutputFormat = OutputFormat.List,
+			
         };
 
         var result = jsonSchema.Evaluate(JsonNode.Parse(jsonContent), options);
@@ -157,6 +182,7 @@ public class ImportConfiguration
             foreach (var detail in result.Details.Where(d => d.HasErrors))
 			{
                 Console.WriteLine($"Error at path: {detail.EvaluationPath}");
+                Console.WriteLine($"Instance location: {detail.InstanceLocation}");
                 foreach (var error in detail?.Errors)
                 {
                     Console.WriteLine($"  - {error.Key}: {error.Value}");
@@ -203,10 +229,13 @@ class ImportFilterSettings
 	[JsonProperty("schemas")]
 	public HashSet<string> Schemas { get; set; } = new();
 
-	[JsonProperty("include_tables")]
+    [JsonProperty("include_tables")]
 	public List<ImportFilterTable> IncludeTables { get; set; } = new();
-	
-	[JsonProperty("include_views")]
+
+    [JsonProperty("include_dependant_tables")]
+	public bool IncludeDependantTables = false;
+
+    [JsonProperty("include_views")]
 	public List<ImportFilterTable> IncludeViews { get; set; } = new();
 	
 	[JsonProperty("exclude_tables")]
