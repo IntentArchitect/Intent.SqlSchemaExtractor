@@ -490,7 +490,7 @@ public class SqlServerSchemaExtractor
     private void OutputMissingExcludedColumns(Table[] filteredTables)
     {
         var filteredItems = filteredTables
-            .ToDictionary(k => k.Name, v => v.Columns.Cast<Column>().Select(c => c.Name).ToHashSet());
+            .ToDictionary(k => $"{k.Name} ({k.Schema})", v => v.Columns.Cast<Column>().Select(c => c.Name).ToHashSet());
 
         OutputMissingExcludedColumns(filteredItems, OutputItemType.Tables);
     }
@@ -498,7 +498,7 @@ public class SqlServerSchemaExtractor
     private void OutputMissingExcludedColumns(View[] filteredViews)
     {
         var filteredItems = filteredViews
-            .ToDictionary(k => k.Name, v => v.Columns.Cast<Column>().Select(c => c.Name).ToHashSet());
+            .ToDictionary(k => $"{k.Name} ({k.Schema})", v => v.Columns.Cast<Column>().Select(c => c.Name).ToHashSet());
 
         OutputMissingExcludedColumns(filteredItems, OutputItemType.Views);
     }
