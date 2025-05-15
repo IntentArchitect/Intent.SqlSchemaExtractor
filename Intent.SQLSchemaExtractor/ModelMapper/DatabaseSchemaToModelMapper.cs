@@ -954,7 +954,7 @@ public class DatabaseSchemaToModelMapper
 
         if(!string.IsNullOrWhiteSpace(normalized) && char.IsDigit(normalized.First()))
         {
-            normalized = $"col{normalized}";
+            normalized = $"db{normalized}";
         }
 
         return normalized;
@@ -1001,6 +1001,12 @@ public class DatabaseSchemaToModelMapper
         normalized = normalized.RemovePrefix("tbl");
 
         normalized = normalized[..1].ToUpper() + normalized[1..];
+
+        if (!string.IsNullOrWhiteSpace(normalized) && char.IsDigit(normalized.First()))
+        {
+            normalized = $"Db{normalized}";
+        }
+
         return normalized;
     }
 
