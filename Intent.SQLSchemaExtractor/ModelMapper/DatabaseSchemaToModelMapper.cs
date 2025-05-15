@@ -952,6 +952,11 @@ public class DatabaseSchemaToModelMapper
             normalized += "Id";
         }
 
+        if(!string.IsNullOrWhiteSpace(normalized) && char.IsDigit(normalized.First()))
+        {
+            normalized = $"col{normalized}";
+        }
+
         return normalized;
     }
 
