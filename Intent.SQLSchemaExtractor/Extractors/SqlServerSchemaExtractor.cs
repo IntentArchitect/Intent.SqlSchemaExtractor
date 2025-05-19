@@ -319,7 +319,7 @@ public class SqlServerSchemaExtractor
             else if (resultSet.TableCount > 1)*/
             if (resultSet.TableCount > 0)
             {
-                var dataContract = databaseSchemaToModelMapper.GetOrCreateDataContractResponse(storedProc);
+                var dataContract = databaseSchemaToModelMapper.GetOrCreateDataContractResponse(storedProc, modelStoredProcedure);
                 modelStoredProcedure.TypeReference = new TypeReferencePersistable
                 {
                     Id = Guid.NewGuid().ToString(),

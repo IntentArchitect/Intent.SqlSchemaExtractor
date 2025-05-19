@@ -49,7 +49,7 @@ internal static class RdbmsSchemaAnnotator
     public static void ApplyViewDetails(View view, ElementPersistable @class)
     {
         var stereotype = @class.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.View.DefinitionId, InitTableStereotype);
-        if (view.Name == @class.Name)
+        if (view.Name != @class.Name)
         {
             stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.View.PropertyId.Name).Value = view.Name;
         }

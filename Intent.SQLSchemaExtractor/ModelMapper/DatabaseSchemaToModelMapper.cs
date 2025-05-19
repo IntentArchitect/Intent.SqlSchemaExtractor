@@ -6,6 +6,7 @@ using Intent.SQLSchemaExtractor.Extractors;
 using Microsoft.SqlServer.Management.Smo;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -37,6 +38,12 @@ public class DatabaseSchemaToModelMapper
     private readonly PackageModelPersistable _package;
     private readonly Database _db;
     private Dictionary<string, ConflictingTable> _conflictingTableNames = new();
+
+    // keep track of the table and table column names actually added into the designer, so can track duplicates
+    private static List<string> _addedTableNames = [];
+    private static List<string> _addedColumnNames = [];
+    private static List<string> _addedProcedureNames = [];
+    private static List<string> _addedViewNames = [];
 
     #region ConflictingTable Class
 
@@ -70,7 +77,6 @@ public class DatabaseSchemaToModelMapper
         _config = config;
         _package = package;
         _db = db;
-        DetermineTableNameConflicts();
     }
 
     public static PackageModelPersistable GetOrCreateDomainPackage(string fullPackagePath, string packageName)
@@ -493,12 +499,12 @@ public class DatabaseSchemaToModelMapper
             repository.ChildElements.Add(element = new ElementPersistable
             {
                 Id = Guid.NewGuid().ToString(),
-                Name = NormalizeStoredProcName(storedProcedure.Name),
+                Name = identity.Name,
                 SpecializationTypeId = storedProcSpecializationType.Id,
                 SpecializationType = storedProcSpecializationType.Name,
                 Stereotypes = [],
                 TypeReference = null,
-                ExternalReference = identity.Name
+                ExternalReference = identity.ExternalReference
             });
         }
 
@@ -681,13 +687,13 @@ public class DatabaseSchemaToModelMapper
         return dataContract;
     }
 
-    internal ElementPersistable GetOrCreateDataContractResponse(StoredProcedure storedProcedure)
+    internal ElementPersistable GetOrCreateDataContractResponse(StoredProcedure storedProcedure, ElementPersistable storedProcElement)
     {
-        var identity = $"{GetIdentity(storedProcedure).ExternalReference}.Response";
+        var identity = $"{storedProcElement.ExternalReference}.Response";
         var dataContract = _package.Classes.FirstOrDefault(x => x.ExternalReference == identity);
         if (dataContract is null)
         {
-            var dataContractName = $"{storedProcedure.Name.ToPascalCase()}Response";
+            var dataContractName = $"{storedProcElement.Name.ToPascalCase()}Response";
             var folder = GetOrCreateFolder(storedProcedure.Schema);
             _package.AddElement(dataContract = new ElementPersistable
             {
@@ -743,7 +749,7 @@ public class DatabaseSchemaToModelMapper
     {
         return new ElementIdentity(
             GetClassExternal(view.Schema, view.Name),
-            GetClassName(view.Name)
+            DeDuplicateView(GetClassName(view.Name), view.Schema)
         );
     }
 
@@ -756,14 +762,14 @@ public class DatabaseSchemaToModelMapper
             {
                 return new ElementIdentity(
                     external,
-                    NormalizeTableName(table.Name)
+                    DeDuplicateTable(NormalizeTableName(table.Name), table.Schema)
                 );
             }
         }
 
         return new ElementIdentity(
             external,
-            GetClassName(table.Name)
+            DeDuplicateTable(GetClassName(table.Name), table.Schema)
         );
     }
 
@@ -782,7 +788,7 @@ public class DatabaseSchemaToModelMapper
 
     private static string GetName(StoredProcedureParameter parameter)
     {
-        return NormalizeStoredProcParameterName(parameter.Name);
+        return DeDuplicateStoredProcedureParameter(NormalizeStoredProcParameterName(parameter.Name), parameter.Parent.Name, parameter.Parent.Schema);
     }
 
     private static ElementIdentity GetIdentity(Column column, ElementPersistable @class)
@@ -821,7 +827,7 @@ public class DatabaseSchemaToModelMapper
     {
         return new ElementIdentity(
             $"{userDefinedTableType.Schema}.{userDefinedTableType.Name}",
-            NormalizeTableName(userDefinedTableType.Name));
+            DeDuplicateTable(NormalizeTableName(userDefinedTableType.Name), userDefinedTableType.Schema));
     }
 
     private static AssociationIdentity GetIdentity(ForeignKey foreignKey)
@@ -839,9 +845,9 @@ public class DatabaseSchemaToModelMapper
         );
     }
 
-    private static string GetStoredProcedureName(StoredProcedure storedProcedure)
+    private static string GetStoredProcedureName(StoredProcedure storedProcedure, bool isResponse = false)
     {
-        return NormalizeStoredProcName(storedProcedure.Name);
+        return DeDuplicateStoredProcedure(NormalizeStoredProcName(storedProcedure.Name), storedProcedure.Schema);
     }
 
     private static string GetIndexName(Microsoft.SqlServer.Management.Smo.Index index)
@@ -909,16 +915,16 @@ public class DatabaseSchemaToModelMapper
     {
         return column.Parent switch
         {
-            Table table => DeDuplicate(NormalizeColumnName(column.Name, table.Name), @class.Name),
-            View view => DeDuplicate(NormalizeColumnName(column.Name, view.Name), @class.Name),
-            UserDefinedTableType table => DeDuplicate(NormalizeColumnName(column.Name, table.Name), @class.Name),
+            Table table => DeDuplicateColumn(NormalizeColumnName(column.Name, table.Name), @class.Name, GetSchema(column)),
+            View view => DeDuplicateColumn(NormalizeColumnName(column.Name, view.Name), @class.Name, GetSchema(column)),
+            UserDefinedTableType table => DeDuplicateColumn(NormalizeColumnName(column.Name, table.Name), @class.Name, GetSchema(column)),
             _ => throw new Exception($"Unknown parent type : {column.Parent}")
         };
     }
     
     private static string GetAttributeName(ResultSetColumn column, ElementPersistable @class)
     {
-        return DeDuplicate(NormalizeColumnName(column.Name, null), @class.Name);
+        return DeDuplicateColumn(NormalizeColumnName(column.Name, null), @class.Name, "");
     }
 
     private static string GetAttributeExternal(Column column)
@@ -931,7 +937,18 @@ public class DatabaseSchemaToModelMapper
             _ => throw new Exception($"Unknown parent type : {column.Parent}")
         };
     }
-    
+
+    private static string GetSchema(Column column)
+    {
+        return column.Parent switch
+        {
+            Table table => table.Schema.ToLower(),
+            View view => view.Schema.ToLower(),
+            UserDefinedTableType table => table.Schema.ToLower(),
+            _ => throw new Exception($"Unknown parent type : {column.Parent}")
+        };
+    }
+
     private static string GetAttributeExternal(ResultSetColumn column, ElementPersistable @class)
     {
         return $"[{@class.ExternalReference}].[{column.Name}]".ToLower();
@@ -940,7 +957,7 @@ public class DatabaseSchemaToModelMapper
     private static string NormalizeColumnName(string colName, string? tableOrViewName)
     {
         var normalized = colName != tableOrViewName ? colName : colName + "Value";
-        normalized = RemoveInvalidCSharpCharacter(normalized);
+        normalized = ToCSharpIdentifier(normalized, "db");
 
         normalized = normalized.RemovePrefix("col").RemovePrefix("pk");
 
@@ -952,22 +969,137 @@ public class DatabaseSchemaToModelMapper
             normalized += "Id";
         }
 
-        if(!string.IsNullOrWhiteSpace(normalized) && char.IsDigit(normalized.First()))
-        {
-            normalized = $"db{normalized}";
-        }
-
         return normalized;
     }
 
-    private static string DeDuplicate(string propertyName, string className)
+    private static string DeDuplicateTable(string className, string schema)
     {
-        if (propertyName != className)
+        var counter = 0;
+        var addedReference = $"[{schema}].[{className}]";
+        bool duplicateFound = false;
+
+        // keep track of the columns added
+        while (_addedTableNames.Any(x => x == addedReference))
         {
-            return propertyName;
+            duplicateFound = true;
+            counter++;
+
+            addedReference = $"[{schema}].[{className}{counter}]";
         }
 
-        return propertyName + "Property";
+        if (duplicateFound)
+        {
+            className = $"{className}{counter}";
+        }
+
+        _addedTableNames.Add(addedReference);
+
+        return className;
+    }
+
+    private static string DeDuplicateView(string className, string schema)
+    {
+        var counter = 0;
+        var addedReference = $"[{schema}].[{className}]";
+        bool duplicateFound = false;
+
+        // keep track of the columns added
+        while (_addedViewNames.Any(x => x == addedReference))
+        {
+            duplicateFound = true;
+            counter++;
+
+            addedReference = $"[{schema}].[{className}{counter}]";
+        }
+
+        if (duplicateFound)
+        {
+            className = $"{className}{counter}";
+        }
+
+        _addedViewNames.Add(addedReference);
+
+        return className;
+    }
+
+    private static string DeDuplicateColumn(string propertyName, string className, string schema)
+    {
+        if (propertyName == className)
+        {
+            propertyName = propertyName + "Property";
+        }
+
+        var counter = 0;
+        var addedReference = $"[{schema}].[{className}].[{propertyName}]";
+        bool duplicateFound = false;
+
+        // keep track of the columns added
+        while (_addedColumnNames.Any(x => x == addedReference))
+        {
+            duplicateFound = true;
+            counter++;
+
+            addedReference = $"[{schema}].[{className}].[{propertyName}{counter}]";
+        }
+
+        if(duplicateFound)
+        {
+            propertyName = $"{propertyName}{counter}";
+        }
+
+        _addedColumnNames.Add(addedReference);
+
+        return propertyName;
+    }
+
+    private static string DeDuplicateStoredProcedure(string procedureName, string schema)
+    {
+        var counter = 0;
+        var addedReference = $"[{schema}].[{procedureName}]";
+        bool duplicateFound = false;
+
+        // keep track of the columns added
+        while (_addedProcedureNames.Any(x => x == addedReference))
+        {
+            duplicateFound = true;
+            counter++;
+
+            addedReference = $"[{schema}].[{procedureName}{counter}]";
+        }
+
+        if (duplicateFound)
+        {
+            procedureName = $"{procedureName}{counter}";
+        }
+
+        _addedProcedureNames.Add(addedReference);
+
+        return procedureName;
+    }
+
+    private static string DeDuplicateStoredProcedureParameter(string parameterName, string procedureName, string schema)
+    {
+        var counter = 0;
+        var addedReference = $"[{schema}].[{procedureName}].[{parameterName}]";
+        bool duplicateFound = false;
+
+        // keep track of the columns added
+        while (_addedProcedureNames.Any(x => x == addedReference))
+        {
+            duplicateFound = true;
+            counter++;
+
+            addedReference = $"[{schema}].[{procedureName}].[{parameterName}{counter}]]";
+        }
+
+        if (duplicateFound)
+        {
+            parameterName = $"{parameterName}{counter}";
+        }
+
+        _addedProcedureNames.Add(addedReference);
+
+        return parameterName;
     }
 
     private static string RemoveInvalidCSharpCharacter(string value)
@@ -994,25 +1126,127 @@ public class DatabaseSchemaToModelMapper
             ;
     }
 
+    // this list and the ToCSharpIdentifier method is comp[ied from Intent.Modules.Common.CSharp module
+    private static readonly HashSet<string> ReservedWords = [
+        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class", "const", "continue", "decimal", "default", "delegate","do",
+        "double", "else", "enum", "event", "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto", "if", "implicit", "in", "int", 
+        "interface","internal", "is", "lock", "long", "namespace", "new", "null", "object", "operator", "out", "override", "params", "private", "protected", "public",
+        "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true", "try",
+        "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "using static", "virtual", "void", "volatile", "while" 
+    ];
+
+    public static string ToCSharpIdentifier(string identifier, string prefixValue = "Db")
+    {
+        if (string.IsNullOrWhiteSpace(identifier))
+        {
+            return string.Empty;
+        }
+        
+    // https://docs.microsoft.com/dotnet/csharp/fundamentals/coding-style/identifier-names
+    // - Identifiers must start with a letter, or _.
+    // - Identifiers may contain Unicode letter characters, decimal digit characters,
+    //   Unicode connecting characters, Unicode combining characters, or Unicode formatting
+    //   characters. For more information on Unicode categories, see the Unicode Category
+    //   Database. You can declare identifiers that match C# keywords by using the @ prefix
+    //   on the identifier. The @ is not part of the identifier name. For example, @if
+    //   declares an identifier named if. These verbatim identifiers are primarily for
+    //   interoperability with identifiers declared in other languages.
+
+    identifier = identifier
+            .Replace("#", "Sharp")
+            .Replace("&", "And");
+
+        var asCharArray = identifier.ToCharArray();
+        for (var i = 0; i < asCharArray.Length; i++)
+        {
+            // Underscore character is not allowed in this case
+            if (asCharArray[i] == '_')
+            {
+                asCharArray[i] = ' ';
+                continue;
+            }
+
+            switch (char.GetUnicodeCategory(asCharArray[i]))
+            {
+                case UnicodeCategory.DecimalDigitNumber:
+                case UnicodeCategory.LetterNumber:
+                case UnicodeCategory.LowercaseLetter:
+                case UnicodeCategory.ModifierLetter:
+                case UnicodeCategory.OtherLetter:
+                case UnicodeCategory.TitlecaseLetter:
+                case UnicodeCategory.UppercaseLetter:
+                case UnicodeCategory.Format:
+                    break;
+                case UnicodeCategory.ClosePunctuation:
+                case UnicodeCategory.ConnectorPunctuation:
+                case UnicodeCategory.Control:
+                case UnicodeCategory.CurrencySymbol:
+                case UnicodeCategory.DashPunctuation:
+                case UnicodeCategory.EnclosingMark:
+                case UnicodeCategory.FinalQuotePunctuation:
+                case UnicodeCategory.InitialQuotePunctuation:
+                case UnicodeCategory.LineSeparator:
+                case UnicodeCategory.MathSymbol:
+                case UnicodeCategory.ModifierSymbol:
+                case UnicodeCategory.NonSpacingMark:
+                case UnicodeCategory.OpenPunctuation:
+                case UnicodeCategory.OtherNotAssigned:
+                case UnicodeCategory.OtherNumber:
+                case UnicodeCategory.OtherPunctuation:
+                case UnicodeCategory.OtherSymbol:
+                case UnicodeCategory.ParagraphSeparator:
+                case UnicodeCategory.PrivateUse:
+                case UnicodeCategory.SpaceSeparator:
+                case UnicodeCategory.SpacingCombiningMark:
+                case UnicodeCategory.Surrogate:
+                    asCharArray[i] = ' ';
+                    break;
+                default:
+                    asCharArray[i] = ' ';
+                    break;
+            }
+        }
+
+        identifier = new string(asCharArray);
+
+        // Replace double spaces
+        while (identifier.Contains("  "))
+        {
+            identifier = identifier.Replace("  ", " ");
+        }
+
+        identifier = string.Concat(identifier
+            .Split(' ')
+            .Where(element => !string.IsNullOrWhiteSpace(element))
+            .Select((element, index) => index == 0
+                ? element
+                : element.ToPascalCase()));
+
+        if (char.IsNumber(identifier[0]))
+        {
+            identifier = $"{prefixValue}{identifier}";
+        }
+
+        if (ReservedWords.Contains(identifier))
+        {
+            identifier = $"{prefixValue}{identifier}";
+        }
+
+        return identifier;
+    }
+
     private static string NormalizeTableName(string tableName)
     {
-        var normalized = RemoveInvalidCSharpCharacter(tableName);
-
-        normalized = normalized.RemovePrefix("tbl");
-
+        var normalized = tableName.RemovePrefix("tbl");
+        normalized = ToCSharpIdentifier(normalized, "Db");
         normalized = normalized[..1].ToUpper() + normalized[1..];
-
-        if (!string.IsNullOrWhiteSpace(normalized) && char.IsDigit(normalized.First()))
-        {
-            normalized = $"Db{normalized}";
-        }
 
         return normalized;
     }
 
     private static string NormalizeStoredProcName(string storeProcName)
     {
-        var normalized = RemoveInvalidCSharpCharacter(storeProcName);
+        var normalized = ToCSharpIdentifier(storeProcName);
         normalized = normalized.RemovePrefix("prc")
             .RemovePrefix("Prc")
             .RemovePrefix("proc");
@@ -1053,73 +1287,11 @@ public class DatabaseSchemaToModelMapper
 
     private static string NormalizeStoredProcParameterName(string storeProcName)
     {
-        var normalized = RemoveInvalidCSharpCharacter(storeProcName);
+        var normalized = ToCSharpIdentifier(storeProcName, "db");
         normalized = normalized.RemovePrefix("prc")
             .RemovePrefix("Prc")
             .RemovePrefix("proc");
         return normalized;
-    }
-
-    private void DetermineTableNameConflicts()
-    {
-        var unqiueNames = new Dictionary<string, List<ConflictingTable>>();
-        foreach (Table table in _db.Tables)
-        {
-            var className = GetClassName(table);
-            if (unqiueNames.ContainsKey(className))
-            {
-                var differentSchemas = true;
-                var unqiueIdentifier = true;
-                var otherTables = unqiueNames[className];
-                foreach (var entry in otherTables)
-                {
-                    if (entry.Table.Schema != table.Schema)
-                    {
-                        continue;
-                    }
-                    entry.DifferentSchemas = false;
-                    differentSchemas = false;
-                    if (NormalizeTableName(entry.Table.Name) != NormalizeTableName(table.Name))
-                    {
-                        continue;
-                    }
-                    entry.UniqueIdentifier = false;
-                    unqiueIdentifier = false;
-                }
-
-                otherTables.Add(new ConflictingTable(table, differentSchemas, unqiueIdentifier));
-            }
-            else
-            {
-                unqiueNames.Add(className, [new ConflictingTable(table, true)]);
-            }
-        }
-
-        var conflicts = unqiueNames.Values.Where(v => v.Count > 1).ToList();
-        foreach (var conflict in conflicts)
-        {
-            //These are fine and expected
-            //e.g. [dbo].[Customer] && [account].[Customer]
-
-            if (conflict.Any(x => !x.UniqueIdentifier))
-            {
-                //Here the different SQL Table names resolve to the same identifier
-                //e.g. [dbo].[tbl_Bank] && [dbo].[tbl___Bank]
-                throw new Exception($"Unable to uniquely resolve Entity names for {string.Join(",", conflict.Select(c => $"[{c.Table.Schema}].[{c.Table.Name}]"))}");
-            }
-
-            if (conflict.Any(x => !x.DifferentSchemas))
-            {
-                //These will work but will break convention
-                //e.g. [dbo].[Bank] && [dbo].[Banks]
-                Logging.LogWarning($"conflicting table names {string.Join(",", conflict.Select(c => $"[{c.Table.Schema}].[{c.Table.Name}]"))}");
-            }
-
-            foreach (var table in conflict)
-            {
-                _conflictingTableNames.Add(GetClassExternal(table.Table), table);
-            }
-        }
     }
 
     private static string GetDefaultFkName(AssociationPersistable association, string targetClassName, string pkAttributeName)
