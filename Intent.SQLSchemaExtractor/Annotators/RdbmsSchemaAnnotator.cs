@@ -74,7 +74,7 @@ internal static class RdbmsSchemaAnnotator
         }
 
         var stereotype = attribute.GetOrCreateStereotype(Constants.Stereotypes.Rdbms.PrimaryKey.DefinitionId, InitPrimaryKeyStereotype);
-        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.Identity).Value = column.Identity.ToString().ToLower();
+        stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.DataSource).Value = GetDataSourceValue(column);
         return;
 
         static void InitPrimaryKeyStereotype(StereotypePersistable stereotype)
@@ -82,7 +82,17 @@ internal static class RdbmsSchemaAnnotator
             stereotype.Name = Constants.Stereotypes.Rdbms.PrimaryKey.Name;
             stereotype.DefinitionPackageId = Constants.Packages.Rdbms.DefinitionPackageId;
             stereotype.DefinitionPackageName = Constants.Packages.Rdbms.DefinitionPackageName;
-            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.Identity, prop => prop.Name = Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.IdentityName);
+            stereotype.GetOrCreateProperty(Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.DataSource, prop => prop.Name = Constants.Stereotypes.Rdbms.PrimaryKey.PropertyId.DataSourceName);
+        }
+        
+        static string GetDataSourceValue(Column column)
+        {
+            if (column.Identity)
+            {
+                return "Auto-generated";
+            }
+
+            return "Default";
         }
     }
 

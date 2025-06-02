@@ -135,8 +135,8 @@ public static class Constants
 
                 public static class PropertyId
                 {
-                    public const string Identity = "4c1e3f7e-61d4-460d-bd20-c2edbc0c0e2e";
-                    public const string IdentityName = "Identity";
+                    public const string DataSource = "a7a5e921-18b9-43b4-8078-b4ac4e5dae6f";
+                    public const string DataSourceName = "Data source";
                 }
             }
 
