@@ -17,6 +17,8 @@ using Intent.SQLSchemaExtractor.Extractors;
 using Microsoft.Data.SqlClient;
 using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.Smo;
+using System.Data.SqlClient;
+using System.Threading.Tasks;
 
 namespace Intent.SQLSchemaExtractor;
 
@@ -24,7 +26,7 @@ public class Program
 {
     private static string GetOptionName(string propertyName) => $"--{propertyName.ToKebabCase()}";
 
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         //Backwards compatability
         if (args.Length == 2 && !args[0].StartsWith("--"))
@@ -63,9 +65,9 @@ public class Program
                 description: $"Path to import filter file (may be relative to {nameof(ImportConfiguration.PackageFileName)} file)"),
             new Option<string?>(
                 name: GetOptionName(nameof(ImportConfiguration.SerializedConfig)),
-                description: "JSON string representing a serialized configuration file.")
+                description: "JSON string representing a serialized configuration file."),
         };
-
+        
         rootCommand.SetHandler(
             handle: (
                 FileInfo? configFile,
@@ -150,6 +152,18 @@ public class Program
                 .Concat(rootCommand.Options)
                 .ToArray());
 
+        var connectionOption = new Option<string>(
+                name: "--connection",
+                description: "SQL Server connection string.")
+            { IsRequired = true };
+        var listStoredProcCommand = new Command("list-stored-proc", "Returns a list of stored procedures in the database.");
+        listStoredProcCommand.AddOption(connectionOption);
+        listStoredProcCommand.SetHandler(async (string connection) =>
+        {
+            var exitCode = await ListProceduresAsync(connection);
+        }, connectionOption);
+        rootCommand.AddCommand(listStoredProcCommand);
+
         Console.WriteLine($"{rootCommand.Name} version {Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion}");
 
         new CommandLineBuilder(rootCommand)
@@ -160,7 +174,7 @@ public class Program
 
     public static void Run(ImportConfiguration config)
     {
-        var connection = new SqlConnection(config.ConnectionString);
+        using var connection = new SqlConnection(config.ConnectionString);
         connection.Open();
         var server = new Server(new ServerConnection(connection));
         var db = server.Databases[connection.Database];
@@ -240,5 +254,32 @@ public class Program
 
         Console.WriteLine("Package saved successfully.");
         Console.WriteLine();
+    }
+
+    public static async Task<int> ListProceduresAsync(string connectionString)
+    {
+        try
+        {
+            await using var connection = new SqlConnection(connectionString);
+            connection.Open();
+            var server = new Server(new ServerConnection(connection));
+            var db = server.Databases[connection.Database];
+            var storedProcs = db.StoredProcedures
+                .OfType<StoredProcedure>()
+                .Where(x => x.Schema != "sys")
+                .ToList();
+            Console.WriteLine($"Stored Procedures: {storedProcs.Count}");
+            foreach (var storedProc in storedProcs)
+            {
+                Console.WriteLine($"{storedProc.Schema}.{storedProc.Name}");
+            }
+            Console.WriteLine(".");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Logging.LogError($"Failed to list procedures: {ex.Message}");
+            return 1;
+        }
     }
 }
