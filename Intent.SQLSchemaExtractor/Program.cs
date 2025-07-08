@@ -26,7 +26,7 @@ public class Program
 {
     private static string GetOptionName(string propertyName) => $"--{propertyName.ToKebabCase()}";
 
-    public static async Task Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
         //Backwards compatability
         if (args.Length == 2 && !args[0].StartsWith("--"))
@@ -37,7 +37,7 @@ public class Program
                 PackageFileName = args[1]
             };
             Run(configFile);
-            return;
+            return 0;
         }
 
         var rootCommand = new RootCommand(
@@ -152,24 +152,24 @@ public class Program
                 .Concat(rootCommand.Options)
                 .ToArray());
 
-        var connectionOption = new Option<string>(
-                name: "--connection",
-                description: "SQL Server connection string.")
-            { IsRequired = true };
+        var connectionOption = new Option<string>(name: "--connection", description: "SQL Server connection string.") { IsRequired = true };
+        
         var listStoredProcCommand = new Command("list-stored-proc", "Returns a list of stored procedures in the database.");
         listStoredProcCommand.AddOption(connectionOption);
-        listStoredProcCommand.SetHandler(async (string connection) =>
-        {
-            var exitCode = await ListProceduresAsync(connection);
-        }, connectionOption);
+        listStoredProcCommand.SetHandler((string connection) => ListProceduresAsync(connection), connectionOption);
         rootCommand.AddCommand(listStoredProcCommand);
 
+        var testConnectionCommand = new Command("test-connection", "Tests the connection to the database.");
+        testConnectionCommand.AddOption(connectionOption);
+        testConnectionCommand.SetHandler((string connection) => TestConnectionAsync(connection));
+        rootCommand.AddCommand(testConnectionCommand);
+        
         Console.WriteLine($"{rootCommand.Name} version {Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion}");
 
-        new CommandLineBuilder(rootCommand)
+        return await new CommandLineBuilder(rootCommand)
             .UseDefaults()
             .Build()
-            .Invoke(args);
+            .InvokeAsync(args);
     }
 
     public static void Run(ImportConfiguration config)
@@ -278,7 +278,26 @@ public class Program
         }
         catch (Exception ex)
         {
-            Logging.LogError($"Failed to list procedures: {ex.Message}");
+            Logging.LogError($"Error: {ex.Message}");
+            return 1;
+        }
+    }
+    
+    private static async Task<int> TestConnectionAsync(string connectionString)
+    {
+        try
+        {
+            await using var connection = new SqlConnection(connectionString);
+            connection.Open();
+            var server = new Server(new ServerConnection(connection));
+            var db = server.Databases[connection.Database];
+            db.ExecuteNonQuery("SELECT 1");
+            Console.WriteLine("Successfully established a connection.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Logging.LogError($"Error: {ex.Message}");
             return 1;
         }
     }
