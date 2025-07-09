@@ -278,7 +278,7 @@ public class Program
         }
         catch (Exception ex)
         {
-            Logging.LogError($"Error: {ex.Message}");
+            Logging.LogError(ex.Message);
             return 1;
         }
     }
@@ -297,7 +297,7 @@ public class Program
         }
         catch (Exception ex)
         {
-            Logging.LogError($"Error: {ex.Message}");
+            Logging.LogError(ex.Message);
             return 1;
         }
     }
