@@ -161,7 +161,7 @@ public class Program
 
         var testConnectionCommand = new Command("test-connection", "Tests the connection to the database.");
         testConnectionCommand.AddOption(connectionOption);
-        testConnectionCommand.SetHandler((string connection) => TestConnectionAsync(connection));
+        testConnectionCommand.SetHandler((string connection) => TestConnectionAsync(connection), connectionOption);
         rootCommand.AddCommand(testConnectionCommand);
         
         Console.WriteLine($"{rootCommand.Name} version {Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion}");
@@ -291,7 +291,7 @@ public class Program
             connection.Open();
             var server = new Server(new ServerConnection(connection));
             var db = server.Databases[connection.Database];
-            db.ExecuteNonQuery("SELECT 1");
+            db.ExecuteWithResults("SELECT 1");
             Console.WriteLine("Successfully established a connection.");
             return 0;
         }
