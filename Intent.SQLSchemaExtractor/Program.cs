@@ -164,6 +164,11 @@ public class Program
         testConnectionCommand.SetHandler((string connection) => TestConnectionAsync(connection), connectionOption);
         rootCommand.AddCommand(testConnectionCommand);
         
+        var extractMetadataCommand = new Command("extract-metadata", "Extracts database metadata (tables, views, stored procedures) as JSON.");
+        extractMetadataCommand.AddOption(connectionOption);
+        extractMetadataCommand.SetHandler((string connection) => ExtractMetadataAsync(connection), connectionOption);
+        rootCommand.AddCommand(extractMetadataCommand);
+        
         Console.WriteLine($"{rootCommand.Name} version {Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion}");
 
         return await new CommandLineBuilder(rootCommand)
@@ -293,6 +298,60 @@ public class Program
             var db = server.Databases[connection.Database];
             db.ExecuteWithResults("SELECT 1");
             Console.WriteLine("Successfully established a connection.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Logging.LogError(ex.Message);
+            return 1;
+        }
+    }
+    
+    public static async Task<int> ExtractMetadataAsync(string connectionString)
+    {
+        try
+        {
+            await using var connection = new SqlConnection(connectionString);
+            connection.Open();
+            var server = new Server(new ServerConnection(connection));
+            var db = server.Databases[connection.Database];
+            
+            var tables = db.Tables
+                .OfType<Table>()
+                .Where(x => x.Schema != "sys")
+                .Select(t => $"{t.Schema}.{t.Name}")
+                .OrderBy(name => name)
+                .ToList();
+                
+            var views = db.Views
+                .OfType<View>()
+                .Where(x => x.Schema != "sys" && x.Schema != "INFORMATION_SCHEMA")
+                .Select(v => $"{v.Schema}.{v.Name}")
+                .OrderBy(name => name)
+                .ToList();
+                
+            var storedProcedures = db.StoredProcedures
+                .OfType<StoredProcedure>()
+                .Where(x => x.Schema != "sys")
+                .Select(sp => $"{sp.Schema}.{sp.Name}")
+                .OrderBy(name => name)
+                .ToList();
+
+            var metadata = new
+            {
+                tables,
+                views,
+                storedProcedures
+            };
+            
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = false
+            };
+            
+            var json = JsonSerializer.Serialize(metadata, options);
+            json = json.Replace("\r", string.Empty).Replace("\n", string.Empty);
+            Console.WriteLine(json);
             return 0;
         }
         catch (Exception ex)
