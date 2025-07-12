@@ -395,11 +395,16 @@ public class SqlServerSchemaExtractor
         var firstTimeExecuting = _cachedFilteredTables is null;
 
         _cachedFilteredTables ??= _db.Tables.OfType<Table>()
-            .Where(table => !_tablesToIgnore.Contains(table.Name) && _config.ExportSchema(table.Schema) && IncludeTable(table.Name))
+            .Where(table => !_tablesToIgnore.Contains(table.Name) &&
+                            (
+                                (_config.ExportSchema(table.Schema) && IncludeTable(table.Name)) ||
+                                IncludeTable($"{table.Schema}.{table.Name}")
+                            )
+            )
             .ToArray();
 
         // if this is the first time running
-        if(firstTimeExecuting)
+        if (firstTimeExecuting)
         {
             _cachedFilteredTables = [.. _cachedFilteredTables, .. GetDependantTables()];
         }
@@ -553,8 +558,11 @@ public class SqlServerSchemaExtractor
         return _cachedFilteredViews ??= _db.Views.OfType<View>()
             .Where(view => view.Schema is not "sys" and not "INFORMATION_SCHEMA" &&
                            !_viewsToIgnore.Contains(view.Name) &&
-                           _config.ExportSchema(view.Schema) &&
-                           IncludeView(view.Name))
+                           (
+                               (_config.ExportSchema(view.Schema) && IncludeView(view.Name)) ||
+                               IncludeView($"{view.Schema}.{view.Name}")
+                           )
+            )
             .ToArray();
     }
 
@@ -572,7 +580,12 @@ public class SqlServerSchemaExtractor
     private StoredProcedure[] GetFilteredStoredProcedures()
     {
         return _cachedFilteredStoredProcedures ??= _db.StoredProcedures.OfType<StoredProcedure>()
-            .Where(storedProc => storedProc.Schema is not "sys" && _config.ExportSchema(storedProc.Schema))
+            .Where(storedProc => storedProc.Schema is not "sys" &&
+                                 (
+                                     (_config.ExportSchema(storedProc.Schema) && _config.ExportStoredProcedure(storedProc.Name)) ||
+                                     _config.ExportStoredProcedure($"{storedProc.Schema}.{storedProc.Name}")
+                                 )
+            )
             .ToArray();
     }
     
