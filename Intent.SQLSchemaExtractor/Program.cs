@@ -145,6 +145,7 @@ public class Program
                 catch (Exception exception)
                 {
                     Logging.LogError($"{exception.Message}");
+                    Console.WriteLine(".");
                     throw;
                 }
             },
@@ -284,6 +285,7 @@ public class Program
         catch (Exception ex)
         {
             Logging.LogError(ex.Message);
+            Console.WriteLine(".");
             return 1;
         }
     }
@@ -303,6 +305,7 @@ public class Program
         catch (Exception ex)
         {
             Logging.LogError(ex.Message);
+            Console.WriteLine(".");
             return 1;
         }
     }
@@ -357,6 +360,7 @@ public class Program
         catch (Exception ex)
         {
             Logging.LogError(ex.Message);
+            Console.WriteLine(".");
             return 1;
         }
     }

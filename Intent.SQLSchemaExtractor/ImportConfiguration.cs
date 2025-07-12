@@ -177,7 +177,7 @@ public class ImportConfiguration
         if (!result.IsValid)
         {
 			Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("The Import Filter File failed schema validation");
+            Logging.LogError("The Import Filter File failed schema validation");
 			Console.WriteLine("");
             foreach (var detail in result.Details.Where(d => d.HasErrors))
 			{
@@ -188,6 +188,7 @@ public class ImportConfiguration
                     Console.WriteLine($"  - {error.Key}: {error.Value}");
                 }
             }
+            Console.WriteLine(".");
 
 			Console.ResetColor();
             return false;
