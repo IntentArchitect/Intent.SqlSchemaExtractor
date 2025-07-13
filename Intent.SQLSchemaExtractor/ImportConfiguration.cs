@@ -242,6 +242,7 @@ public enum StoredProcedureType
 	RepositoryOperation
 }
 
+// IMPORTANT! If anything changes here, you need to update the SQL Server Import Module too!
 class ImportFilterSettings
 {
 	[JsonProperty("schemas")]
