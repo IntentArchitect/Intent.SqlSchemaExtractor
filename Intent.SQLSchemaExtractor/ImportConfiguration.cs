@@ -65,25 +65,58 @@ public class ImportConfiguration
 		return settings.Schemas.Count == 0 || settings.Schemas.Contains(schema);
 	}
 
-	internal bool IncludeDependantTables()
-	{
-        var settings = GetImportFilterSettings();
-
-		return settings.IncludeDependantTables;
-    }
-
-
-    internal bool ExportTable(string tableName)
+    internal bool ExportTable(string schema, string tableName)
 	{
 		var settings = GetImportFilterSettings();
-		if (settings.ExcludeTables.Contains(tableName))
+		if (!ExportSchema(schema))
+		{
+			return false;
+		}
+		
+		if (settings.ExcludeTables.Contains(tableName) || settings.ExcludeTables.Contains($"{schema}.{tableName}"))
+		{
+			return false;
+		}
+		
+		return settings.IncludeTables.Count == 0 || 
+		       settings.IncludeTables.Any(x => x.Name == tableName || x.Name == $"{schema}.{tableName}");
+	}
+
+	internal bool ExportView(string schema, string viewName)
+	{
+		var settings = GetImportFilterSettings();
+		if (!ExportSchema(schema))
+		{
+			return false;
+		}
+		
+		if (settings.ExcludeViews.Contains(viewName) || settings.ExcludeViews.Contains($"{schema}.{viewName}"))
+		{
+			return false;
+		}
+		
+		return settings.IncludeViews.Count == 0 || 
+		       settings.IncludeViews.Any(x => x.Name == viewName || x.Name == $"{schema}.{viewName}");
+	}
+
+	internal bool ExportStoredProcedure(string schema, string storedProcedureName)
+	{
+		var settings = GetImportFilterSettings();
+		if (!ExportSchema(schema))
+		{
+			return false;
+		}
+		
+		if (settings.ExcludeStoredProcedures.Contains(storedProcedureName) || settings.ExcludeStoredProcedures.Contains($"{schema}.{storedProcedureName}"))
 		{
 			return false;
 		}
 
-		return settings.IncludeTables.Count == 0 || settings.IncludeTables.Any(x => x.Name == tableName);
+		return settings.IncludeStoredProcedures.Count == 0 ||
+		       settings.IncludeStoredProcedures.Contains(storedProcedureName) ||
+		       settings.IncludeStoredProcedures.Contains($"{schema}.{storedProcedureName}");
 	}
-
+	
 	internal bool ExportDependantTable(string schema, string tableName)
 	{
 		if (!ExportSchema(schema))
@@ -91,49 +124,34 @@ public class ImportConfiguration
 			return false;
 		}
 
-        var settings = GetImportFilterSettings();
-        if (settings.ExcludeTables.Contains(tableName))
-        {
-            return false;
-        }
-
-		return true;
-    }
-
-	internal bool ExportView(string viewName)
-	{
 		var settings = GetImportFilterSettings();
-		if (settings.ExcludeViews.Contains(viewName))
+		if (settings.ExcludeTables.Contains(tableName) || settings.ExcludeTables.Contains($"{schema}.{tableName}"))
 		{
 			return false;
 		}
-		
-		return settings.IncludeViews.Count == 0 || settings.IncludeViews.Any(x => x.Name == viewName);
-	}
 
-	internal bool ExportTableColumn(string tableName, string colName)
+		return true;
+	}
+	
+	internal bool ExportTableColumn(string schema, string tableName, string colName)
 	{
 		var filterSettings = GetImportFilterSettings();
-        var table = filterSettings.IncludeTables.FirstOrDefault(x => x.Name == tableName);
+		var table = filterSettings.IncludeTables.FirstOrDefault(x => x.Name == tableName || x.Name == $"{schema}.{tableName}");
 		return table?.ExcludeColumns.Contains(colName) != true && filterSettings.ExcludedTableColumns.Contains(colName) != true;
 	}
 
-	internal bool ExportViewColumn(string viewName, string colName)
+	internal bool ExportViewColumn(string schema, string viewName, string colName)
 	{
-        var filterSettings = GetImportFilterSettings();
-        var view = filterSettings.IncludeViews.FirstOrDefault(x => x.Name == viewName);
+		var filterSettings = GetImportFilterSettings();
+		var view = filterSettings.IncludeViews.FirstOrDefault(x => x.Name == viewName || x.Name == $"{schema}.{viewName}");
 		return view?.ExcludeColumns.Contains(colName) != true && filterSettings.ExcludedViewColumns.Contains(colName) != true;
-    }
-
-	internal bool ExportStoredProcedure(string storedProcedureName)
+	}
+	
+	internal bool IncludeDependantTables()
 	{
 		var settings = GetImportFilterSettings();
-		if (settings.ExcludeStoredProcedures.Contains(storedProcedureName))
-		{
-			return false;
-		}
-		
-		return settings.IncludeStoredProcedures.Count == 0 || settings.IncludeStoredProcedures.Contains(storedProcedureName);
+
+		return settings.IncludeDependantTables;
 	}
 	
 	internal bool ExportTables()

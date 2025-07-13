@@ -161,7 +161,7 @@ public class SqlServerSchemaExtractor
             
             foreach (Column col in table.Columns)
             {
-                if (!_config.ExportTableColumn(table.Name, col.Name))
+                if (!_config.ExportTableColumn(table.Schema, table.Name, col.Name))
                 {
                     continue;
                 }
@@ -240,7 +240,7 @@ public class SqlServerSchemaExtractor
 
             foreach (Column col in view.Columns)
             {
-                if (!_config.ExportViewColumn(view.Name, col.Name))
+                if (!_config.ExportViewColumn(view.Schema, view.Name, col.Name))
                 {
                     continue;
                 }
@@ -273,7 +273,7 @@ public class SqlServerSchemaExtractor
 
         foreach (var storedProc in filteredStoredProcedures)
         {
-            if (!_config.ExportSchema(storedProc.Schema) || !_config.ExportStoredProcedure(storedProc.Name))
+            if (!_config.ExportStoredProcedure(storedProc.Schema, storedProc.Name))
             {
                 continue;
             }
@@ -395,12 +395,7 @@ public class SqlServerSchemaExtractor
         var firstTimeExecuting = _cachedFilteredTables is null;
 
         _cachedFilteredTables ??= _db.Tables.OfType<Table>()
-            .Where(table => !_tablesToIgnore.Contains(table.Name) &&
-                            (
-                                (_config.ExportSchema(table.Schema) && IncludeTable(table.Name)) ||
-                                IncludeTable($"{table.Schema}.{table.Name}")
-                            )
-            )
+            .Where(table => !_tablesToIgnore.Contains(table.Name) && _config.ExportTable(table.Schema, table.Name))
             .ToArray();
 
         // if this is the first time running
@@ -557,35 +552,16 @@ public class SqlServerSchemaExtractor
     {
         return _cachedFilteredViews ??= _db.Views.OfType<View>()
             .Where(view => view.Schema is not "sys" and not "INFORMATION_SCHEMA" &&
-                           !_viewsToIgnore.Contains(view.Name) &&
-                           (
-                               (_config.ExportSchema(view.Schema) && IncludeView(view.Name)) ||
-                               IncludeView($"{view.Schema}.{view.Name}")
-                           )
-            )
+                           !_viewsToIgnore.Contains(view.Name) && _config.ExportView(view.Schema, view.Name))
             .ToArray();
-    }
-
-    private bool IncludeTable(string tableName)
-    {
-        return _config.ExportTable(tableName);
-    }
-           
-    private bool IncludeView(string viewName)
-    {
-        return _config.ExportView(viewName);
     }
 
     private StoredProcedure[]? _cachedFilteredStoredProcedures;
     private StoredProcedure[] GetFilteredStoredProcedures()
     {
         return _cachedFilteredStoredProcedures ??= _db.StoredProcedures.OfType<StoredProcedure>()
-            .Where(storedProc => storedProc.Schema is not "sys" &&
-                                 (
-                                     (_config.ExportSchema(storedProc.Schema) && _config.ExportStoredProcedure(storedProc.Name)) ||
-                                     _config.ExportStoredProcedure($"{storedProc.Schema}.{storedProc.Name}")
-                                 )
-            )
+            .Where(storedProc => storedProc.Schema is not "sys" && 
+                                 _config.ExportStoredProcedure(storedProc.Schema, storedProc.Name))
             .ToArray();
     }
     
