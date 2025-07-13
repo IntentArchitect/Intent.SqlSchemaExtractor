@@ -169,8 +169,7 @@ public class ImportConfiguration
         var options = new EvaluationOptions
         {
 			AddAnnotationForUnknownKeywords = true,
-			OutputFormat = OutputFormat.List,
-			
+			OutputFormat = OutputFormat.List
         };
 
         var result = jsonSchema.Evaluate(JsonNode.Parse(jsonContent), options);

@@ -118,26 +118,26 @@ public class Program
                     if (importFilterFilePath != null)
                         config.ImportFilterFilePath = importFilterFilePath;
 
+                    if (!string.IsNullOrWhiteSpace(config.ImportFilterFilePath) &&
+                        !Path.IsPathRooted(config.ImportFilterFilePath))
+                    {
+                        config.ImportFilterFilePath = Path.Combine(Path.GetDirectoryName(config.PackageFileName)!, config.ImportFilterFilePath);
+                    }
+                    
                     if(!config.ValidateFilterFile())
                     {
                         return;
                     }
 
-                    if (string.IsNullOrEmpty(config.ConnectionString))
+                    if (string.IsNullOrWhiteSpace(config.ConnectionString))
                         throw new Exception($"{GetOptionName(nameof(ImportConfiguration.ConnectionString))} is mandatory or a --config-file with a connection string.");
 
-                    if (string.IsNullOrEmpty(config.PackageFileName))
+                    if (string.IsNullOrWhiteSpace(config.PackageFileName))
                         throw new Exception($"{GetOptionName(nameof(ImportConfiguration.PackageFileName))} is mandatory or a --config-file with a package file name.");
 
                     if (config.StoredProcedureType == StoredProcedureType.Default)
                     {
                         config.StoredProcedureType = StoredProcedureType.StoredProcedureElement;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(config.ImportFilterFilePath) &&
-                        !Path.IsPathRooted(config.ImportFilterFilePath))
-                    {
-                        config.ImportFilterFilePath = Path.Combine(Path.GetDirectoryName(config.PackageFileName)!, config.ImportFilterFilePath);
                     }
                     
                     Run(config);
