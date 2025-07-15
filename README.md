@@ -1,3 +1,8 @@
+> [!NOTE]
+>
+> This repository has been refactored and will no longer be maintained going forward.
+> You can find that the contents have moved to the [Intent.Modules.Importers](https://github.com/IntentArchitect/Intent.Modules.Importers) one.
+
 # Sample code for extracting a SQL Server schema into an Intent Architect package
 
 This repository contains a sample C# application which connects to a SQL Server, analyzes its schema and then generates a package containing with the extracted "domain" including classes, their attributes and their associations to each other.
